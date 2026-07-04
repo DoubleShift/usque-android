@@ -11,6 +11,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed by softprops/action-gh-release to create releases
 
     env:
       # Go version must match go.mod's `go 1.x.x` directive.
