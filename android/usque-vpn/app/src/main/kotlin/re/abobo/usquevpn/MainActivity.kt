@@ -24,7 +24,7 @@ class MainActivity : Activity() {
     private lateinit var connectButton: Button
     private lateinit var ipv4Text: TextView
     private lateinit var ipv6Text: TextView
-    private lateinit var settingsButton: ImageButton
+    private lateinit var settingsButton: Button
     private lateinit var sniText: TextView
     private lateinit var endpointText: TextView
     private lateinit var perAppCard: android.view.View
