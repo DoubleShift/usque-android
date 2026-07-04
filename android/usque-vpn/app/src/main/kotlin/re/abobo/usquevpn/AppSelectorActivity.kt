@@ -81,6 +81,11 @@ class AppSelectorActivity : Activity() {
         recyclerView.adapter = adapter
 
         switchEnable.setOnCheckedChangeListener { _, isChecked ->
+            // When turning on for the first time (no saved selection), default-check all apps
+            if (isChecked && selectedPackages.isEmpty() && allApps.isNotEmpty()) {
+                selectedPackages.addAll(allApps.map { it.packageName })
+                adapter.notifyDataSetChanged()
+            }
             updateUiForSwitchState(isChecked)
             updateSummary()
         }
@@ -196,6 +201,10 @@ class AppSelectorActivity : Activity() {
             // Drop any selected packages that have been uninstalled.
             val installedSet = result.map { it.packageName }.toHashSet()
             selectedPackages.retainAll(installedSet)
+            // Default: if switch is on but no apps selected yet, check all
+            if (switchEnable.isChecked && selectedPackages.isEmpty()) {
+                selectedPackages.addAll(result.map { it.packageName })
+            }
             applyFilter("")
             updateSummary()
         }

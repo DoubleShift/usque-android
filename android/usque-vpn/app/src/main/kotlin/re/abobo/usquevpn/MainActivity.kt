@@ -180,11 +180,9 @@ class MainActivity : Activity() {
         if (UsqueVpnService.isRunning) {
             connectButton.text = "Connected"
             connectButton.setBackgroundDrawable(resources.getDrawable(R.drawable.button_connected_background))
-            settingsButton.isEnabled = false
         } else {
             connectButton.text = "Connect"
             connectButton.setBackgroundDrawable(resources.getDrawable(R.drawable.button_background))
-            settingsButton.isEnabled = true
         }
 
         // Show assigned IP if registered
