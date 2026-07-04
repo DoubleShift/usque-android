@@ -23,6 +23,7 @@ class MainActivity : Activity() {
     private lateinit var prefs: SharedPreferences
     private lateinit var statusText: TextView
     private lateinit var connectButton: Button
+    private lateinit var disconnectButton: Button
     private lateinit var ipInfoText: TextView
     private lateinit var settingsButton: Button
     private lateinit var sniText: TextView
@@ -38,6 +39,7 @@ class MainActivity : Activity() {
 
         statusText = findViewById(R.id.status_text)
         connectButton = findViewById(R.id.connect_button)
+        disconnectButton = findViewById(R.id.disconnect_button)
         ipInfoText = findViewById(R.id.ip_info_text)
         settingsButton = findViewById(R.id.settings_button)
         sniText = findViewById(R.id.sni_text)
@@ -49,11 +51,11 @@ class MainActivity : Activity() {
         loadSavedSettings()
 
         connectButton.setOnClickListener {
-            if (UsqueVpnService.isRunning) {
-                stopVpn()
-            } else {
-                startVpn()
-            }
+            startVpn()
+        }
+
+        disconnectButton.setOnClickListener {
+            stopVpn()
         }
 
         settingsButton.setOnClickListener {
@@ -159,7 +161,7 @@ class MainActivity : Activity() {
         startService(intent)
 
         // Update UI after a delay to ensure service has stopped
-        connectButton.postDelayed({
+        disconnectButton.postDelayed({
             updateUI()
         }, 1000)
     }
@@ -194,12 +196,14 @@ class MainActivity : Activity() {
         if (UsqueVpnService.isRunning) {
             statusText.text = "Connected"
             statusText.setTextColor(getColor(android.R.color.holo_green_dark))
-            connectButton.text = "Disconnect"
+            connectButton.isEnabled = false
+            disconnectButton.isEnabled = true
             settingsButton.isEnabled = false
         } else {
             statusText.text = "Disconnected"
             statusText.setTextColor(getColor(android.R.color.holo_red_dark))
-            connectButton.text = "Connect"
+            connectButton.isEnabled = true
+            disconnectButton.isEnabled = false
             settingsButton.isEnabled = true
         }
 
