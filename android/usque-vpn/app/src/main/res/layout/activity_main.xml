@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#1a1a2e">
+    android:background="#ffffff">
 
     <!-- Top bar: title + settings logo button -->
     <RelativeLayout
@@ -16,10 +16,10 @@
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
             android:layout_alignParentStart="true"
-            android:text="Usque VPN"
+            android:text="RE.usque"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#ffffff" />
+            android:textColor="#1a1a2e" />
 
         <ImageButton
             android:id="@+id/settings_button"
@@ -40,11 +40,10 @@
         android:layout_weight="1"
         android:orientation="vertical"
         android:gravity="center"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="24dp">
+        android:paddingStart="28dp"
+        android:paddingEnd="28dp">
 
-        <!-- Connect / Connected toggle button (also shows status) -->
+        <!-- Connect / Connected toggle button (circular) -->
         <Button
             android:id="@+id/connect_button"
             android:layout_width="200dp"
@@ -54,18 +53,26 @@
             android:textStyle="bold"
             android:textColor="#ffffff"
             android:background="@drawable/button_background"
-            android:layout_marginBottom="24dp" />
+            android:layout_marginBottom="28dp" />
 
-        <!-- IP / SNI / Endpoint info (compact) -->
+        <!-- IPv4 -->
         <TextView
-            android:id="@+id/ip_info_text"
+            android:id="@+id/ipv4_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Not registered"
-            android:textSize="12sp"
-            android:textColor="#aaaaaa"
-            android:gravity="center"
-            android:layout_marginBottom="6dp" />
+            android:text="IPv4: Not registered"
+            android:textSize="13sp"
+            android:textColor="#888888" />
+
+        <!-- IPv6 -->
+        <TextView
+            android:id="@+id/ipv6_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="IPv6: Not registered"
+            android:textSize="13sp"
+            android:textColor="#888888"
+            android:layout_marginBottom="8dp" />
 
         <TextView
             android:id="@+id/sni_text"
@@ -73,7 +80,7 @@
             android:layout_height="wrap_content"
             android:text="SNI: www.visa.cn"
             android:textSize="11sp"
-            android:textColor="#666666" />
+            android:textColor="#aaaaaa" />
 
         <TextView
             android:id="@+id/endpoint_text"
@@ -81,56 +88,58 @@
             android:layout_height="wrap_content"
             android:text="Endpoint: 162.159.198.1"
             android:textSize="11sp"
-            android:textColor="#666666"
-            android:layout_marginBottom="16dp" />
+            android:textColor="#aaaaaa" />
 
-        <!-- Per-App Proxy Card (compact) -->
+    </LinearLayout>
+
+    <!-- Per-App Proxy Card (pinned to bottom) -->
+    <LinearLayout
+        android:id="@+id/per_app_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/card_background"
+        android:padding="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="24dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?android:attr/selectableItemBackground">
+
         <LinearLayout
-            android:id="@+id/per_app_card"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/card_background"
-            android:padding="14dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?android:attr/selectableItemBackground">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Per-App Proxy"
-                    android:textSize="10sp"
-                    android:textColor="#888888"
-                    android:textAllCaps="true"
-                    android:letterSpacing="0.1" />
-
-                <TextView
-                    android:id="@+id/per_app_status_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Off — all apps use VPN"
-                    android:textSize="13sp"
-                    android:textColor="#ffffff"
-                    android:layout_marginTop="2dp" />
-
-            </LinearLayout>
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Manage ›"
-                android:textSize="12sp"
-                android:textColor="#4e8aff" />
+                android:text="Per-App Proxy"
+                android:textSize="10sp"
+                android:textColor="#999999"
+                android:textAllCaps="true"
+                android:letterSpacing="0.1" />
+
+            <TextView
+                android:id="@+id/per_app_status_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Off — all apps use VPN"
+                android:textSize="14sp"
+                android:textColor="#1a1a2e"
+                android:layout_marginTop="2dp" />
 
         </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Manage ›"
+            android:textSize="13sp"
+            android:textColor="#6c5ce7" />
 
     </LinearLayout>
 

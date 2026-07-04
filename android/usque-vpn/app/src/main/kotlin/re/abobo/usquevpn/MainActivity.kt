@@ -22,7 +22,8 @@ class MainActivity : Activity() {
 
     private lateinit var prefs: SharedPreferences
     private lateinit var connectButton: Button
-    private lateinit var ipInfoText: TextView
+    private lateinit var ipv4Text: TextView
+    private lateinit var ipv6Text: TextView
     private lateinit var settingsButton: ImageButton
     private lateinit var sniText: TextView
     private lateinit var endpointText: TextView
@@ -36,7 +37,8 @@ class MainActivity : Activity() {
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         connectButton = findViewById(R.id.connect_button)
-        ipInfoText = findViewById(R.id.ip_info_text)
+        ipv4Text = findViewById(R.id.ipv4_text)
+        ipv6Text = findViewById(R.id.ipv6_text)
         settingsButton = findViewById(R.id.settings_button)
         sniText = findViewById(R.id.sni_text)
         endpointText = findViewById(R.id.endpoint_text)
@@ -187,11 +189,11 @@ class MainActivity : Activity() {
 
         // Show assigned IP if registered
         if (Usqueandroid.isRegistered(configPath)) {
-            val ipv4 = Usqueandroid.getAssignedIPv4(configPath)
-            val ipv6 = Usqueandroid.getAssignedIPv6(configPath)
-            ipInfoText.text = "IPv4: $ipv4 | IPv6: $ipv6"
+            ipv4Text.text = "IPv4: ${Usqueandroid.getAssignedIPv4(configPath)}"
+            ipv6Text.text = "IPv6: ${Usqueandroid.getAssignedIPv6(configPath)}"
         } else {
-            ipInfoText.text = "Not registered"
+            ipv4Text.text = "IPv4: Not registered"
+            ipv6Text.text = "IPv6: Not registered"
         }
 
         val currentSni = prefs.getString(KEY_SNI, Usqueandroid.getSNI()) ?: "www.visa.cn"
