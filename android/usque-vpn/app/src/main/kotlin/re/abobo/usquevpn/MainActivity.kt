@@ -25,8 +25,6 @@ class MainActivity : Activity() {
     private lateinit var ipv4Text: TextView
     private lateinit var ipv6Text: TextView
     private lateinit var settingsButton: Button
-    private lateinit var sniText: TextView
-    private lateinit var endpointText: TextView
     private lateinit var perAppCard: android.view.View
     private lateinit var perAppStatusText: TextView
 
@@ -40,8 +38,6 @@ class MainActivity : Activity() {
         ipv4Text = findViewById(R.id.ipv4_text)
         ipv6Text = findViewById(R.id.ipv6_text)
         settingsButton = findViewById(R.id.settings_button)
-        sniText = findViewById(R.id.sni_text)
-        endpointText = findViewById(R.id.endpoint_text)
         perAppCard = findViewById(R.id.per_app_card)
         perAppStatusText = findViewById(R.id.per_app_status_text)
 
@@ -193,17 +189,6 @@ class MainActivity : Activity() {
             ipv4Text.text = "IPv4: Not registered"
             ipv6Text.text = "IPv6: Not registered"
         }
-
-        val currentSni = prefs.getString(KEY_SNI, Usqueandroid.getSNI()) ?: "www.visa.cn"
-        sniText.text = "SNI: $currentSni"
-
-        val currentEndpoint = prefs.getString(KEY_ENDPOINT, "") ?: ""
-        val displayEndpoint = if (currentEndpoint.isNotEmpty()) {
-            currentEndpoint
-        } else {
-            Usqueandroid.getDefaultEndpoint(configPath)
-        }
-        endpointText.text = "Endpoint: $displayEndpoint"
 
         // Per-app proxy status
         val perAppEnabled = prefs.getBoolean(UsqueVpnService.KEY_PER_APP_ENABLED, false)

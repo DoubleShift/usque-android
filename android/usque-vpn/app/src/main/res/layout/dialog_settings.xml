@@ -4,15 +4,16 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="#1a1a1a">
+    android:background="#f5f3ef">
 
     <!-- SNI Input -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="SNI (Server Name Indication)"
-        android:textColor="#c4b5a5"
+        android:textColor="#668863"
         android:textSize="12sp"
+        android:fontFamily="sans-serif-medium"
         android:layout_marginBottom="4dp" />
 
     <EditText
@@ -20,8 +21,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="www.visa.cn"
-        android:textColor="#e8d8c9"
-        android:textColorHint="#a89b8d"
+        android:textColor="#3d3d3d"
+        android:textColorHint="#8a8a8a"
         android:inputType="textUri"
         android:layout_marginBottom="16dp" />
 
@@ -30,8 +31,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Endpoint (host:port)"
-        android:textColor="#c4b5a5"
+        android:textColor="#668863"
         android:textSize="12sp"
+        android:fontFamily="sans-serif-medium"
         android:layout_marginBottom="4dp" />
 
     <EditText
@@ -39,8 +41,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="162.159.198.1:443"
-        android:textColor="#e8d8c9"
-        android:textColorHint="#a89b8d"
+        android:textColor="#3d3d3d"
+        android:textColorHint="#8a8a8a"
         android:inputType="textUri"
         android:layout_marginBottom="8dp" />
 
@@ -48,7 +50,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Supported formats:\n• IPv4: 162.159.198.1:443\n• IPv6: [2606:4700:103::1]:443\n• Without port defaults to 443"
-        android:textColor="#a89b8d"
+        android:textColor="#5a6b52"
         android:textSize="11sp"
         android:lineSpacingExtra="2dp" />
 
