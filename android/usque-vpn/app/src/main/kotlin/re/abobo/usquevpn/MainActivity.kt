@@ -24,6 +24,7 @@ class MainActivity : Activity() {
     private lateinit var connectButton: Button
     private lateinit var ipv4Text: TextView
     private lateinit var ipv6Text: TextView
+    private lateinit var endpointText: TextView
     private lateinit var settingsButton: Button
     private lateinit var perAppCard: android.view.View
     private lateinit var perAppStatusText: TextView
@@ -37,6 +38,7 @@ class MainActivity : Activity() {
         connectButton = findViewById(R.id.connect_button)
         ipv4Text = findViewById(R.id.ipv4_text)
         ipv6Text = findViewById(R.id.ipv6_text)
+        endpointText = findViewById(R.id.endpoint_text)
         settingsButton = findViewById(R.id.settings_button)
         perAppCard = findViewById(R.id.per_app_card)
         perAppStatusText = findViewById(R.id.per_app_status_text)
@@ -175,10 +177,10 @@ class MainActivity : Activity() {
 
         if (UsqueVpnService.isRunning) {
             connectButton.text = "Connected"
-            connectButton.setBackgroundDrawable(resources.getDrawable(R.drawable.button_connected_background))
+            connectButton.setBackgroundResource(R.drawable.button_connected_background)
         } else {
             connectButton.text = "Connect"
-            connectButton.setBackgroundDrawable(resources.getDrawable(R.drawable.button_background))
+            connectButton.setBackgroundResource(R.drawable.button_background)
         }
 
         // Show assigned IP if registered
@@ -189,6 +191,15 @@ class MainActivity : Activity() {
             ipv4Text.text = "IPv4: Not registered"
             ipv6Text.text = "IPv6: Not registered"
         }
+
+        // Show current endpoint
+        val currentEndpoint = prefs.getString(KEY_ENDPOINT, "") ?: ""
+        val displayEndpoint = if (currentEndpoint.isNotEmpty()) {
+            currentEndpoint
+        } else {
+            Usqueandroid.getDefaultEndpoint(configPath)
+        }
+        endpointText.text = "Endpoint: $displayEndpoint"
 
         // Per-app proxy status
         val perAppEnabled = prefs.getBoolean(UsqueVpnService.KEY_PER_APP_ENABLED, false)

@@ -73,17 +73,18 @@
 
         </FrameLayout>
 
-        <!-- IP info (minimal) -->
+        <!-- Connection info (left aligned) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center_horizontal">
+            android:gravity="start">
 
             <TextView
                 android:id="@+id/ipv4_text"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="start"
                 android:text="IPv4: Not registered"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif"
@@ -92,9 +93,22 @@
 
             <TextView
                 android:id="@+id/ipv6_text"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="start"
                 android:text="IPv6: Not registered"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif"
+                android:textColor="#3d3d3d"
+                android:letterSpacing="0.02"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:id="@+id/endpoint_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start"
+                android:text="Endpoint: —"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif"
                 android:textColor="#3d3d3d"
