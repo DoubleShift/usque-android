@@ -123,34 +123,35 @@ class UsqueVpnService : VpnService() {
             builder.addDnsServer("2606:4700:4700::1111")
             builder.addDnsServer("2606:4700:4700::1001")
 
-            // ----- Per-app proxy (allowlist) -----
-            // When enabled, ONLY the user-selected apps are routed through the VPN.
-            // The VPN app itself is always excluded so the outbound QUIC connection
-            // to Cloudflare does not loop back through the TUN interface.
-            // Note: per Android docs, addAllowedApplication+addDisallowedApplication
-            // are mutually exclusive per app, so we never call both for the same pkg.
+            // ----- Per-app proxy -----
+            // Android's VpnService.Builder supports two mutually exclusive modes:
+            //   - Allowlist: only apps added via addAllowedApplication() go through VPN
+            //   - Blocklist: only apps added via addDisallowedApplication() are excluded
+            // Mixing both causes establish() to throw UnsupportedOperationException.
+            //
+            // Strategy:
+            //   - Per-app ON  → allowlist mode: only selected apps use VPN.
+            //     Our own app is NOT in the allowlist, so its QUIC/MASQUE outbound
+            //     connection to Cloudflare bypasses the TUN interface (no loop).
+            //   - Per-app OFF → blocklist mode: all apps use VPN except our own.
             val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
             val perAppEnabled = prefs.getBoolean(KEY_PER_APP_ENABLED, false)
             val selectedPackages = prefs.getStringSet(KEY_PER_APP_PACKAGES, emptySet()) ?: emptySet()
 
-            // Always exclude our own package first to guarantee the QUIC/MASQUE
-            // outbound connection to Cloudflare never loops back through the TUN.
-            builder.addDisallowedApplication(packageName)
-
             if (perAppEnabled && selectedPackages.isNotEmpty()) {
-                Log.i(TAG, "Per-app mode ON: ${selectedPackages.size} apps -> $selectedPackages")
+                Log.i(TAG, "Per-app mode ON (allowlist): ${selectedPackages.size} apps -> $selectedPackages")
                 for (pkg in selectedPackages) {
-                    if (pkg == packageName) continue // never allow ourselves
+                    if (pkg == packageName) continue  // never route our own traffic
                     try {
                         builder.addAllowedApplication(pkg)
                         Log.d(TAG, "Allowed app: $pkg")
                     } catch (e: Exception) {
-                        // Package may have been uninstalled; skip gracefully.
                         Log.w(TAG, "Failed to add allowed app $pkg: ${e.message}")
                     }
                 }
             } else {
-                Log.i(TAG, "Per-app mode OFF: routing all apps through VPN (except self)")
+                Log.i(TAG, "Per-app mode OFF (blocklist): all apps through VPN except self")
+                builder.addDisallowedApplication(packageName)
             }
 
             vpnInterface = builder.establish()

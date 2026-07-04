@@ -11,8 +11,8 @@ android {
         applicationId = "re.abobo.usquevpn"
         minSdk = 24
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.0.5-disconnect-btn"
+        versionCode = 6
+        versionName = "1.0.6-perapp-fix"
     }
 
     buildTypes {
