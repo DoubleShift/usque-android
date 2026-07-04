@@ -3,87 +3,69 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center"
-    android:padding="20dp"
     android:background="#1a1a2e">
 
-    <!-- App Title -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Usque VPN"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="#ffffff"
-        android:layout_marginBottom="4dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Cloudflare WARP / MASQUE"
-        android:textSize="12sp"
-        android:textColor="#888888"
-        android:layout_marginBottom="20dp" />
-
-    <!-- Status Card -->
-    <LinearLayout
+    <!-- Top bar: title + settings logo button -->
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@drawable/card_background"
-        android:padding="16dp"
-        android:layout_marginBottom="12dp">
+        android:padding="16dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Status"
-            android:textSize="11sp"
-            android:textColor="#888888"
-            android:textAllCaps="true"
-            android:letterSpacing="0.1" />
-
-        <TextView
-            android:id="@+id/status_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Disconnected"
-            android:textSize="20sp"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:text="Usque VPN"
+            android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#ff6b6b"
-            android:layout_marginTop="2dp" />
+            android:textColor="#ffffff" />
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#333333"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="10dp" />
+        <ImageButton
+            android:id="@+id/settings_button"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_alignParentEnd="true"
+            android:src="@drawable/ic_vpn"
+            android:scaleType="centerCrop"
+            android:background="@drawable/button_circle_background"
+            android:contentDescription="Settings" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Your IP Address"
-            android:textSize="11sp"
-            android:textColor="#888888"
-            android:textAllCaps="true"
-            android:letterSpacing="0.1" />
+    </RelativeLayout>
 
+    <!-- Center content -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="24dp">
+
+        <!-- Connect / Connected toggle button (also shows status) -->
+        <Button
+            android:id="@+id/connect_button"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:text="Connect"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#ffffff"
+            android:background="@drawable/button_background"
+            android:layout_marginBottom="24dp" />
+
+        <!-- IP / SNI / Endpoint info (compact) -->
         <TextView
             android:id="@+id/ip_info_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Not registered"
-            android:textSize="13sp"
-            android:textColor="#ffffff"
-            android:layout_marginTop="2dp" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#333333"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="10dp" />
+            android:textSize="12sp"
+            android:textColor="#aaaaaa"
+            android:gravity="center"
+            android:layout_marginBottom="6dp" />
 
         <TextView
             android:id="@+id/sni_text"
@@ -91,7 +73,7 @@
             android:layout_height="wrap_content"
             android:text="SNI: www.visa.cn"
             android:textSize="11sp"
-            android:textColor="#aaaaaa" />
+            android:textColor="#666666" />
 
         <TextView
             android:id="@+id/endpoint_text"
@@ -99,111 +81,57 @@
             android:layout_height="wrap_content"
             android:text="Endpoint: 162.159.198.1"
             android:textSize="11sp"
-            android:textColor="#aaaaaa"
-            android:layout_marginTop="2dp" />
+            android:textColor="#666666"
+            android:layout_marginBottom="16dp" />
 
-    </LinearLayout>
-
-    <!-- Per-App Proxy Card -->
-    <LinearLayout
-        android:id="@+id/per_app_card"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/card_background"
-        android:padding="16dp"
-        android:layout_marginBottom="12dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:foreground="?android:attr/selectableItemBackground">
-
+        <!-- Per-App Proxy Card (compact) -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:id="@+id/per_app_card"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/card_background"
+            android:padding="14dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?android:attr/selectableItemBackground">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Per-App Proxy"
+                    android:textSize="10sp"
+                    android:textColor="#888888"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.1" />
+
+                <TextView
+                    android:id="@+id/per_app_status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Off — all apps use VPN"
+                    android:textSize="13sp"
+                    android:textColor="#ffffff"
+                    android:layout_marginTop="2dp" />
+
+            </LinearLayout>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Per-App Proxy"
-                android:textSize="11sp"
-                android:textColor="#888888"
-                android:textAllCaps="true"
-                android:letterSpacing="0.1" />
-
-            <TextView
-                android:id="@+id/per_app_status_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Off — all apps use VPN"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="#ffffff"
-                android:layout_marginTop="2dp" />
+                android:text="Manage ›"
+                android:textSize="12sp"
+                android:textColor="#4e8aff" />
 
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Manage ›"
-            android:textSize="12sp"
-            android:textColor="#4e8aff" />
-
     </LinearLayout>
-
-    <!-- Settings + Connect Buttons Row -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
-
-        <Button
-            android:id="@+id/settings_button"
-            android:layout_width="0dp"
-            android:layout_height="52dp"
-            android:layout_weight="1"
-            android:text="⚙ Settings"
-            android:textSize="13sp"
-            android:textColor="#ffffff"
-            android:background="@drawable/button_secondary_background"
-            android:layout_marginEnd="6dp" />
-
-        <Button
-            android:id="@+id/connect_button"
-            android:layout_width="0dp"
-            android:layout_height="52dp"
-            android:layout_weight="1"
-            android:text="Connect"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="#ffffff"
-            android:background="@drawable/button_background"
-            android:layout_marginStart="6dp" />
-
-    </LinearLayout>
-
-    <!-- Disconnect Button (full width) -->
-    <Button
-        android:id="@+id/disconnect_button"
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:text="Disconnect"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:textColor="#ffffff"
-        android:background="@drawable/button_danger_background"
-        android:layout_marginBottom="12dp" />
-
-    <!-- Footer -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Powered by usque"
-        android:textSize="11sp"
-        android:textColor="#555555" />
 
 </LinearLayout>

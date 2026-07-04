@@ -65,7 +65,7 @@ jobs:
           go install golang.org/x/mobile/cmd/gomobile@latest
           gomobile init -v
           gomobile bind -v \
-            -target=android/arm64,android/arm \
+            -target=android/arm64 \
             -androidapi 24 \
             -ldflags="-s -w" \
             -o android/usque.aar \
@@ -87,22 +87,22 @@ jobs:
           gradle-version: "8.5"
           cache-disabled: false
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android/usque-vpn
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: gradle assembleRelease --no-daemon --stacktrace
 
       # ---------- Upload artifacts ----------
       - name: Locate APK
         id: apk
         run: |
-          APK=$(find android/usque-vpn/app/build/outputs/apk -name "*.apk" | head -n1)
+          APK=$(find android/usque-vpn/app/build/outputs/apk -name "*release*.apk" | head -n1)
           echo "apk_path=$APK" >> $GITHUB_OUTPUT
           echo "Found APK: $APK"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: usque-vpn-re-debug-apk
+          name: usque-vpn-re-release-apk
           path: ${{ steps.apk.outputs.apk_path }}
           if-no-files-found: error
           retention-days: 30

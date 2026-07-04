@@ -21,11 +21,9 @@ class MainActivity : Activity() {
     }
 
     private lateinit var prefs: SharedPreferences
-    private lateinit var statusText: TextView
     private lateinit var connectButton: Button
-    private lateinit var disconnectButton: Button
     private lateinit var ipInfoText: TextView
-    private lateinit var settingsButton: Button
+    private lateinit var settingsButton: ImageButton
     private lateinit var sniText: TextView
     private lateinit var endpointText: TextView
     private lateinit var perAppCard: android.view.View
@@ -37,9 +35,7 @@ class MainActivity : Activity() {
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        statusText = findViewById(R.id.status_text)
         connectButton = findViewById(R.id.connect_button)
-        disconnectButton = findViewById(R.id.disconnect_button)
         ipInfoText = findViewById(R.id.ip_info_text)
         settingsButton = findViewById(R.id.settings_button)
         sniText = findViewById(R.id.sni_text)
@@ -51,11 +47,11 @@ class MainActivity : Activity() {
         loadSavedSettings()
 
         connectButton.setOnClickListener {
-            startVpn()
-        }
-
-        disconnectButton.setOnClickListener {
-            stopVpn()
+            if (UsqueVpnService.isRunning) {
+                stopVpn()
+            } else {
+                startVpn()
+            }
         }
 
         settingsButton.setOnClickListener {
@@ -76,11 +72,9 @@ class MainActivity : Activity() {
     }
 
     private fun loadSavedSettings() {
-        // Load SNI
         val savedSni = prefs.getString(KEY_SNI, "www.visa.cn") ?: "www.visa.cn"
         Usqueandroid.setSNI(savedSni)
 
-        // Load endpoint
         val savedEndpoint = prefs.getString(KEY_ENDPOINT, "") ?: ""
         if (savedEndpoint.isNotEmpty()) {
             Usqueandroid.setEndpoint(savedEndpoint)
@@ -102,7 +96,6 @@ class MainActivity : Activity() {
 
         val configPath = "${filesDir.absolutePath}/config.json"
 
-        // Load current values from prefs (persisted)
         sniInput.setText(prefs.getString(KEY_SNI, Usqueandroid.getSNI()))
 
         val currentEndpoint = prefs.getString(KEY_ENDPOINT, "") ?: ""
@@ -119,10 +112,7 @@ class MainActivity : Activity() {
                 val sni = sniInput.text.toString()
                 val endpoint = endpointInput.text.toString()
 
-                // Save to SharedPreferences
                 saveSettings(sni, endpoint)
-
-                // Apply to Go library
                 Usqueandroid.setSNI(sni)
                 Usqueandroid.setEndpoint(endpoint)
 
@@ -131,7 +121,6 @@ class MainActivity : Activity() {
             }
             .setNegativeButton("Cancel", null)
             .setNeutralButton("Reset") { _, _ ->
-                // Reset to defaults
                 saveSettings("www.visa.cn", "")
                 Usqueandroid.resetConnectionOptions()
                 Toast.makeText(this, "Settings reset to defaults", Toast.LENGTH_SHORT).show()
@@ -141,27 +130,22 @@ class MainActivity : Activity() {
     }
 
     private fun startVpn() {
-        // Request VPN permission from system
         val intent = VpnService.prepare(this)
         if (intent != null) {
             startActivityForResult(intent, VPN_REQUEST_CODE)
         } else {
-            // Permission already granted
             onVpnPermissionGranted()
         }
     }
 
     private fun stopVpn() {
-        // Method 1: Use static stop (direct)
         UsqueVpnService.stop()
 
-        // Method 2: Send disconnect intent (backup)
         val intent = Intent(this, UsqueVpnService::class.java)
         intent.action = UsqueVpnService.ACTION_DISCONNECT
         startService(intent)
 
-        // Update UI after a delay to ensure service has stopped
-        disconnectButton.postDelayed({
+        connectButton.postDelayed({
             updateUI()
         }, 1000)
     }
@@ -175,7 +159,6 @@ class MainActivity : Activity() {
                 Toast.makeText(this, "VPN permission denied", Toast.LENGTH_SHORT).show()
             }
         } else if (requestCode == APP_SELECTOR_REQUEST_CODE) {
-            // Per-app selection may have changed; refresh UI.
             updateUI()
         }
     }
@@ -184,7 +167,6 @@ class MainActivity : Activity() {
         val intent = Intent(this, UsqueVpnService::class.java)
         startService(intent)
 
-        // Update UI after a short delay to allow service to start
         connectButton.postDelayed({
             updateUI()
         }, 1500)
@@ -194,16 +176,12 @@ class MainActivity : Activity() {
         val configPath = "${filesDir.absolutePath}/config.json"
 
         if (UsqueVpnService.isRunning) {
-            statusText.text = "Connected"
-            statusText.setTextColor(getColor(android.R.color.holo_green_dark))
-            connectButton.isEnabled = false
-            disconnectButton.isEnabled = true
+            connectButton.text = "Connected"
+            connectButton.setBackgroundDrawable(resources.getDrawable(R.drawable.button_connected_background))
             settingsButton.isEnabled = false
         } else {
-            statusText.text = "Disconnected"
-            statusText.setTextColor(getColor(android.R.color.holo_red_dark))
-            connectButton.isEnabled = true
-            disconnectButton.isEnabled = false
+            connectButton.text = "Connect"
+            connectButton.setBackgroundDrawable(resources.getDrawable(R.drawable.button_background))
             settingsButton.isEnabled = true
         }
 
@@ -211,12 +189,11 @@ class MainActivity : Activity() {
         if (Usqueandroid.isRegistered(configPath)) {
             val ipv4 = Usqueandroid.getAssignedIPv4(configPath)
             val ipv6 = Usqueandroid.getAssignedIPv6(configPath)
-            ipInfoText.text = "IPv4: $ipv4\nIPv6: $ipv6"
+            ipInfoText.text = "IPv4: $ipv4 | IPv6: $ipv6"
         } else {
             ipInfoText.text = "Not registered"
         }
 
-        // Show current settings (from prefs for persistence)
         val currentSni = prefs.getString(KEY_SNI, Usqueandroid.getSNI()) ?: "www.visa.cn"
         sniText.text = "SNI: $currentSni"
 
