@@ -1,0 +1,111 @@
+name: Build APK
+
+# Free build on public GitHub repos. Triggers on push to main/master,
+# on tags (for releases), and via manual dispatch from the Actions tab.
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      # Go version must match go.mod's `go 1.x.x` directive.
+      GO_VERSION: "1.24.2"
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.caching=true"
+
+    steps:
+      # ---------- Checkout ----------
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # ---------- JDK (Gradle requires JDK 17 for AGP 8.x) ----------
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # ---------- Go (for gomobile bind) ----------
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      # ---------- Android SDK (NDK is needed by gomobile bind) ----------
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+            ndk;27.0.12077973
+
+      - name: Export Android env vars
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.0.12077973" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.0.12077973" >> $GITHUB_ENV
+          echo "PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_ENV
+
+      # ---------- Build the usque.aar Go library via gomobile ----------
+      - name: Install gomobile and build usque.aar
+        working-directory: ${{ github.workspace }}
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          gomobile init -v
+          gomobile bind -v \
+            -target=android/arm64,android/arm \
+            -androidapi 24 \
+            -ldflags="-s -w" \
+            -o android/usque.aar \
+            github.com/Diniboy1123/usque/android
+
+      - name: Place AAR into app/libs
+        run: |
+          mkdir -p android/usque-vpn/app/libs
+          cp android/usque.aar android/usque-vpn/app/libs/usque.aar
+          ls -la android/usque-vpn/app/libs/
+
+      # ---------- Gradle build ----------
+      # Repo only ships gradlew.bat (Windows). Use the official Gradle setup
+      # action to install Gradle 8.5 (matches gradle-wrapper.properties) on
+      # the runner, then invoke `gradle` directly.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.5"
+          cache-disabled: false
+
+      - name: Build debug APK
+        working-directory: android/usque-vpn
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      # ---------- Upload artifacts ----------
+      - name: Locate APK
+        id: apk
+        run: |
+          APK=$(find android/usque-vpn/app/build/outputs/apk -name "*.apk" | head -n1)
+          echo "apk_path=$APK" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: usque-vpn-re-debug-apk
+          path: ${{ steps.apk.outputs.apk_path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      # ---------- (Optional) Release on tag ----------
+      - name: Release APK on tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.apk.outputs.apk_path }}
+          name: Release ${{ github.ref_name }}
+          generate_release_notes: true

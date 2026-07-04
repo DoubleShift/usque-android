@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "com.abobo.usquevpn"
+    namespace = "re.abobo.usquevpn"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.abobo.usquevpn"
+        applicationId = "re.abobo.usquevpn"
         minSdk = 24
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.0.3"
+        versionCode = 4
+        versionName = "1.0.4-perapp"
     }
 
     buildTypes {
@@ -55,4 +55,7 @@ dependencies {
     
     // Material Design
     implementation("com.google.android.material:material:1.11.0")
+
+    // RecyclerView (used by per-app selector)
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
 }
