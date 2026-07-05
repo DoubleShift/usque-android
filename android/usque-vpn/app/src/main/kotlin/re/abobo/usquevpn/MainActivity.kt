@@ -29,6 +29,8 @@ class MainActivity : Activity() {
     private lateinit var perAppCard: android.view.View
     private lateinit var perAppStatusText: TextView
 
+    private val configPath by lazy { "${filesDir.absolutePath}/config.json" }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -93,8 +95,6 @@ class MainActivity : Activity() {
 
         val sniInput = dialogView.findViewById<EditText>(R.id.sni_input)
         val endpointInput = dialogView.findViewById<EditText>(R.id.endpoint_input)
-
-        val configPath = "${filesDir.absolutePath}/config.json"
 
         sniInput.setText(prefs.getString(KEY_SNI, Usqueandroid.getSNI()))
 
@@ -173,8 +173,6 @@ class MainActivity : Activity() {
     }
 
     private fun updateUI() {
-        val configPath = "${filesDir.absolutePath}/config.json"
-
         if (UsqueVpnService.isRunning) {
             connectButton.text = "Connected"
             connectButton.setBackgroundResource(R.drawable.button_connected_background)

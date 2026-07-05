@@ -13,8 +13,20 @@
 # Keep VpnService subclass (instantiated by the system).
 -keep class re.abobo.usquevpn.UsqueVpnService { *; }
 
+# Keep Activities referenced from AndroidManifest.xml.
+-keep class re.abobo.usquevpn.MainActivity { *; }
+-keep class re.abobo.usquevpn.AppSelectorActivity { *; }
+
 # Kotlin metadata
 -keepattributes *Annotation*
 -keepattributes Signature
 -keepattributes InnerClass
 -keepclassmembers class kotlin.Metadata { *; }
+
+# Suppress common gomobile/AndroidX warnings that do not affect runtime.
+-dontwarn usqueandroid.**
+-dontwarn go.**
+-dontwarn android.window.BackEvent
+
+# Allow R8 to remove more unused code by not keeping generic exception stack traces.
+-optimizations !code/simplification/cast

@@ -11,13 +11,16 @@ android {
         applicationId = "re.abobo.usquevpn"
         minSdk = 24
         targetSdk = 34
-        versionCode = 13
-        versionName = "1.0.13-info-panel"
+        versionCode = 14
+        versionName = "1.0.14-optimize"
 
         // ARM64 only — halves native lib size, covers all modern devices
         ndk {
             abiFilters += "arm64-v8a"
         }
+
+        // Strip unused language resources (app only ships English UI text)
+        resourceConfigurations += "en"
     }
 
     buildTypes {
