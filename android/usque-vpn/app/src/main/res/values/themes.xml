@@ -1,11 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.UsqueVpn" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">#668863</item>
-        <item name="colorPrimaryDark">#668863</item>
-        <item name="colorAccent">#b38a59</item>
+    <!--
+      Switched from Theme.MaterialComponents.DayNight.NoActionBar to a plain
+      platform theme. MaterialComponents pulls in:
+        - MaterialComponentsViewInflater (auto-inflates Material widgets)
+        - MaterialColors, MaterialShapeUtils, MaterialAttributes
+        - Hundreds of Material-specific drawables and styles
+      None of which this app actually uses (MainActivity extends Activity,
+      not AppCompatActivity; no Material widgets in any layout; AlertDialog
+      is the platform android.app.AlertDialog, not Material).
+      Dropping Material saves ~2 MB of code memory and reduces inflation
+      overhead at Activity start.
+    -->
+    <style name="Theme.UsqueVpn" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
         <item name="android:statusBarColor">#f5f3ef</item>
         <item name="android:navigationBarColor">#f5f3ef</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">#f5f3ef</item>
     </style>
 </resources>

@@ -11,8 +11,8 @@ android {
         applicationId = "re.abobo.usquevpn"
         minSdk = 24
         targetSdk = 34
-        versionCode = 15
-        versionName = "1.0.15-mem-optim"
+        versionCode = 16
+        versionName = "1.0.16-ui-trim"
 
         // ARM64 only — halves native lib size, covers all modern devices
         ndk {
@@ -59,13 +59,19 @@ dependencies {
     // Kotlin standard library
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
 
-    // AndroidX core
+    // AndroidX core — lightweight, only adds a few utility functions
     implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.appcompat:appcompat:1.6.1")
-
-    // Material Design (required by theme)
-    implementation("com.google.android.material:material:1.11.0")
 
     // RecyclerView (used by per-app selector)
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+
+    // NOTE: Material Components and AppCompat were removed to reduce memory.
+    // - MainActivity extends android.app.Activity (not AppCompatActivity),
+    //   so AppCompat is not needed.
+    // - No Material widgets are used in any layout; all drawables are plain
+    //   <shape>/<selector> XML. The theme was switched to a platform
+    //   DeviceDefault theme (see values/themes.xml).
+    // - AlertDialog is android.app.AlertDialog, not androidx/Material.
+    // This saves ~2-3 MB of code memory (per-class tables, inflater
+    // overhead, dex mmap) and slightly reduces Graphics memory.
 }
