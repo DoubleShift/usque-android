@@ -11,8 +11,8 @@ android {
         applicationId = "re.abobo.usquevpn"
         minSdk = 24
         targetSdk = 34
-        versionCode = 14
-        versionName = "1.0.14-optimize"
+        versionCode = 15
+        versionName = "1.0.15-mem-optim"
 
         // ARM64 only — halves native lib size, covers all modern devices
         ndk {

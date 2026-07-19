@@ -280,4 +280,28 @@ class UsqueVpnService : VpnService() {
         Log.i(TAG, "VPN revoked by user")
         disconnect()
     }
+
+    /**
+     * Called by the system when memory is running low. We forward this to
+     * the Go runtime so it can GC immediately and release idle heap spans
+     * back to the OS. Without this, the Go GC only fires based on its own
+     * allocation rate heuristic and won't react to system pressure, which
+     * can get the VPN process OOM-killed even though the Go heap has plenty
+     * of reclaimable memory.
+     *
+     * Trim levels:
+     *   TRIM_MEMORY_RUNNING_LOW / CRITICAL (level 10 / 15): foreground pressure
+     *   TRIM_MEMORY_BACKGROUND / MODERATE (level 40 / 60): background pressure
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
+            try {
+                val freed = Usqueandroid.forceGC()
+                Log.i(TAG, "onTrimMemory(level=$level): Go GC freed $freed objects")
+            } catch (e: Exception) {
+                Log.w(TAG, "forceGC failed: ${e.message}")
+            }
+        }
+    }
 }

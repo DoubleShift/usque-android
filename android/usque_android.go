@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -22,6 +23,14 @@ import (
 	"github.com/Diniboy1123/usque/config"
 	"github.com/Diniboy1123/usque/internal"
 )
+
+// init applies memory-conservative Go runtime settings the moment the .so
+// is loaded by the Android process, before any tunnel work starts. This is
+// the earliest point at which we can act — by the time StartTunnel() is
+// called, Go has already allocated a fair amount of state.
+func init() {
+	internal.ConfigureRuntime()
+}
 
 // PacketFlow is the interface that Android must implement to exchange packets with the VPN
 // This interface is used for bidirectional packet flow between Android TUN and Go tunnel
@@ -334,6 +343,86 @@ func IsRunning() bool {
 // GetVersion returns the library version
 func GetVersion() string {
 	return "1.0.3-android"
+}
+
+// SetRuntimeMemoryLimitMB overrides the Go runtime soft memory limit.
+//
+// Call this BEFORE StartTunnel() to take effect; calling it while the
+// tunnel is running will also apply, but already-allocated heap will be
+// reclaimed gradually by GC rather than immediately.
+//
+// Recommended values:
+//   - 24 MiB (default): balanced
+//   - 16 MiB: aggressive — smaller heap, more CPU on GC, suitable for
+//     background-only VPN use
+//   - 32 MiB: relaxed — more heap headroom, less GC pressure
+//
+// Returns the previous limit in MiB.
+func SetRuntimeMemoryLimitMB(mb int) int {
+	return internal.SetRuntimeMemoryLimitMB(mb)
+}
+
+// GetRuntimeMemoryLimitMB returns the current Go runtime soft memory
+// limit in MiB.
+func GetRuntimeMemoryLimitMB() int {
+	return internal.GetRuntimeMemoryLimitMB()
+}
+
+// ForceGC triggers an immediate Go garbage collection and returns the free
+// memory in bytes after the collection.
+//
+// Android's ComponentCallbacks2.onTrimMemory(level) calls this when the
+// system is under memory pressure. Without it, the Go runtime only frees
+// heap on its own schedule (which is tied to allocation rate, not to
+// system pressure), so a phone can OOM-kill the VPN process even though
+// the Go side has plenty of reclaimable heap.
+//
+// Safe to call from any goroutine at any time.
+func ForceGC() int {
+	runtime.GC()
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return int(m.Frees)
+}
+
+// MemStatsSnapshot is a gomobile-friendly snapshot of Go runtime memory
+// statistics (gomobile bind does not support map types, so we expose a
+// struct instead). All sizes are in bytes unless noted.
+type MemStatsSnapshot struct {
+	// Alloc is bytes of allocated heap objects currently in use.
+	Alloc int64
+	// Sys is bytes obtained from the OS by the Go runtime (total).
+	Sys int64
+	// HeapInuse is bytes in in-use spans.
+	HeapInuse int64
+	// HeapIdle is bytes in idle spans (reclaimable by OS).
+	HeapIdle int64
+	// HeapReleased is bytes of idle spans returned to the OS.
+	HeapReleased int64
+	// HeapObjects is the count of live heap objects.
+	HeapObjects int64
+	// NumGC is the number of completed GC cycles.
+	NumGC int64
+	// NumGoroutine is the current number of goroutines.
+	NumGoroutine int64
+}
+
+// ReadMemStats returns Go runtime memory statistics. Exposed so the
+// Android UI can display current heap usage (e.g. for a diagnostics
+// screen).
+func ReadMemStats() *MemStatsSnapshot {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return &MemStatsSnapshot{
+		Alloc:        int64(m.Alloc),
+		Sys:          int64(m.Sys),
+		HeapInuse:    int64(m.HeapInuse),
+		HeapIdle:     int64(m.HeapIdle),
+		HeapReleased: int64(m.HeapReleased),
+		HeapObjects:  int64(m.HeapObjects),
+		NumGC:        int64(m.NumGC),
+		NumGoroutine: int64(runtime.NumGoroutine()),
+	}
 }
 
 // parseEndpoint parses an endpoint string in the format:

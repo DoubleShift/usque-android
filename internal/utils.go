@@ -129,6 +129,29 @@ func DefaultQuicConfig(keepalivePeriod time.Duration, initialPacketSize uint16) 
 		EnableDatagrams:   true,
 		InitialPacketSize: initialPacketSize,
 		KeepAlivePeriod:   keepalivePeriod,
+		// Memory-conservative tuning for Android / long-running clients.
+		//
+		// The quic-go defaults below are sized for high-throughput server
+		// workloads. On a phone they balloon the Go heap by ~2-5 MiB
+		// per connection (and there is exactly one connection here).
+		//
+		//   InitialStreamReceiveWindow:     512 KiB -> 64 KiB
+		//   InitialConnectionReceiveWindow:  ~1 MiB -> 128 KiB
+		//   MaxIncomingStreams:              100    -> 8
+		//
+		// The MASQUE connect-ip tunnel uses a single request stream for
+		// capsules, so a small stream window barely hurts throughput —
+		// bulk traffic flows over QUIC datagrams (EnableDatagrams above),
+		// not streams. MaxIncomingStreams caps the number of concurrent
+		// peer-initiated streams the client will accept.
+		InitialStreamReceiveWindow:     64 * 1024,
+		InitialConnectionReceiveWindow: 128 * 1024,
+		MaxIncomingStreams:             8,
+		MaxIdleTimeout:                 60 * time.Second,
+		// DisablePathMTUDiscovery saves the buffers used to probe the path
+		// MTU. On a phone this is not worth the memory cost — the initial
+		// packet size (1242) is already a safe IPv6-safe value.
+		DisablePathMTUDiscovery: true,
 	}
 }
 
