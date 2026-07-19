@@ -152,7 +152,7 @@ var nativeTunCmd = &cobra.Command{
 
 		log.Printf("Created TUN device: %s", t.name)
 
-		go api.MaintainTunnel(context.Background(), tlsConfig, keepalivePeriod, initialPacketSize, endpoint, dev, mtu, reconnectDelay)
+		go api.MaintainTunnel(context.Background(), tlsConfig, keepalivePeriod, initialPacketSize, endpoint, dev, mtu, reconnectDelay, nil)
 
 		log.Println("Tunnel established, you may now set up routing and DNS")
 

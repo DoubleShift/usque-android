@@ -189,7 +189,7 @@ var portFwCmd = &cobra.Command{
 		}
 		defer tunDev.Close()
 
-		go api.MaintainTunnel(context.Background(), tlsConfig, keepalivePeriod, initialPacketSize, endpoint, api.NewNetstackAdapter(tunDev), mtu, reconnectDelay)
+		go api.MaintainTunnel(context.Background(), tlsConfig, keepalivePeriod, initialPacketSize, endpoint, api.NewNetstackAdapter(tunDev), mtu, reconnectDelay, nil)
 
 		log.Printf("Virtual tunnel created, forwarding ports")
 

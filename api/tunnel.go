@@ -143,6 +143,19 @@ func NewWaterAdapter(iface *water.Interface) TunnelDevice {
 	return &WaterAdapter{iface: iface}
 }
 
+// StatusCallback is called by MaintainTunnel to report connection lifecycle
+// events. Callers can use it to update UI state or collect diagnostics
+// without parsing log output.
+//
+// status is one of:
+//   - "connecting":   a new connection attempt is starting
+//   - "connected":    the MASQUE tunnel is up and forwarding packets
+//   - "error":        the connection attempt failed (detail contains the error)
+//   - "disconnected": a previously-established tunnel was lost (detail has cause)
+//
+// detail provides additional context; for "connected" it is empty.
+type StatusCallback func(status, detail string)
+
 // MaintainTunnel continuously connects to the MASQUE server, then starts two
 // forwarding goroutines: one forwarding from the device to the IP connection (and handling
 // any ICMP reply), and the other forwarding from the IP connection to the device.
@@ -157,10 +170,14 @@ func NewWaterAdapter(iface *water.Interface) TunnelDevice {
 //   - device: TunnelDevice - The TUN device to forward packets to and from.
 //   - mtu: int - The MTU of the TUN device.
 //   - reconnectDelay: time.Duration - The delay between reconnect attempts.
-func MaintainTunnel(ctx context.Context, tlsConfig *tls.Config, keepalivePeriod time.Duration, initialPacketSize uint16, endpoint *net.UDPAddr, device TunnelDevice, mtu int, reconnectDelay time.Duration) {
+//   - statusCb: StatusCallback - Optional callback for connection status events. Pass nil to disable.
+func MaintainTunnel(ctx context.Context, tlsConfig *tls.Config, keepalivePeriod time.Duration, initialPacketSize uint16, endpoint *net.UDPAddr, device TunnelDevice, mtu int, reconnectDelay time.Duration, statusCb StatusCallback) {
 	packetBufferPool := NewNetBuffer(mtu)
 	for {
 		log.Printf("Establishing MASQUE connection to %s:%d", endpoint.IP, endpoint.Port)
+		if statusCb != nil {
+			statusCb("connecting", fmt.Sprintf("endpoint=%s:%d", endpoint.IP, endpoint.Port))
+		}
 		udpConn, tr, ipConn, rsp, err := ConnectTunnel(
 			ctx,
 			tlsConfig,
@@ -170,11 +187,17 @@ func MaintainTunnel(ctx context.Context, tlsConfig *tls.Config, keepalivePeriod 
 		)
 		if err != nil {
 			log.Printf("Failed to connect tunnel: %v", err)
+			if statusCb != nil {
+				statusCb("error", fmt.Sprintf("connect failed: %v", err))
+			}
 			time.Sleep(reconnectDelay)
 			continue
 		}
 		if rsp.StatusCode != 200 {
 			log.Printf("Tunnel connection failed: %s", rsp.Status)
+			if statusCb != nil {
+				statusCb("error", fmt.Sprintf("HTTP status: %s", rsp.Status))
+			}
 			ipConn.Close()
 			if udpConn != nil {
 				udpConn.Close()
@@ -187,6 +210,9 @@ func MaintainTunnel(ctx context.Context, tlsConfig *tls.Config, keepalivePeriod 
 		}
 
 		log.Println("Connected to MASQUE server")
+		if statusCb != nil {
+			statusCb("connected", "")
+		}
 		errChan := make(chan error, 2)
 
 		go func() {
@@ -244,6 +270,9 @@ func MaintainTunnel(ctx context.Context, tlsConfig *tls.Config, keepalivePeriod 
 
 		err = <-errChan
 		log.Printf("Tunnel connection lost: %v. Reconnecting...", err)
+		if statusCb != nil {
+			statusCb("disconnected", fmt.Sprintf("connection lost: %v", err))
+		}
 		ipConn.Close()
 		if udpConn != nil {
 			udpConn.Close()

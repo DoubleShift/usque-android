@@ -254,7 +254,7 @@ var httpProxyCmd = &cobra.Command{
 
 		resolver := internal.GetProxyResolver(localDNS, tunNet, dnsAddrs, dnsTimeout)
 
-		go api.MaintainTunnel(context.Background(), tlsConfig, keepalivePeriod, initialPacketSize, endpoint, api.NewNetstackAdapter(tunDev), mtu, reconnectDelay)
+		go api.MaintainTunnel(context.Background(), tlsConfig, keepalivePeriod, initialPacketSize, endpoint, api.NewNetstackAdapter(tunDev), mtu, reconnectDelay, nil)
 
 		// Single shared client for all proxied HTTP requests — keeps a
 		// keep-alive connection pool to the destination hosts through the

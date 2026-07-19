@@ -198,6 +198,16 @@ class UsqueVpnService : VpnService() {
                 }
             }
 
+            // Redirect Go's log output to a file so we can read it via adb
+            // even on devices where logcat is OEM-restricted (e.g. Meizu).
+            val logPath = "${filesDir.absolutePath}/tunnel.log"
+            val logErr = Usqueandroid.setLogPath(logPath)
+            if (logErr.isNotEmpty()) {
+                Log.w(TAG, "Failed to set Go log path: $logErr")
+            } else {
+                Log.i(TAG, "Go tunnel log: $logPath")
+            }
+
             // Start the Go tunnel with our TUN file descriptor
             val tunnelError = Usqueandroid.startTunnel(configPath, fd.toLong(), 1280, packetFlow, callback)
             if (tunnelError.isNotEmpty()) {

@@ -52,13 +52,62 @@ type VpnStateCallback interface {
 
 // tunnelState holds the state of the running tunnel
 type tunnelState struct {
-	mu       sync.Mutex
-	running  bool
-	cancel   context.CancelFunc
-	callback VpnStateCallback
+	mu        sync.Mutex
+	running   bool
+	cancel    context.CancelFunc
+	callback  VpnStateCallback
+	status    string // "connecting", "connected", "error", "disconnected"
+	lastError string
 }
 
 var state = &tunnelState{}
+
+// SetLogPath redirects Go's log output to a file at the given path.
+//
+// This is critical on Android devices where logcat is OEM-restricted
+// (e.g. Meizu) — without file-based logging, all the diagnostic
+// log.Printf calls in MaintainTunnel/ConnectTunnel are invisible.
+//
+// The file is truncated on each call so it only contains the current
+// session's logs. Call this BEFORE StartTunnel for complete logging.
+//
+// Parameters:
+//   - path: Absolute path to the log file (must be writable by the app)
+//
+// Returns:
+//   - error string if opening the file fails, empty string on success
+func SetLogPath(path string) string {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Sprintf("Failed to open log file: %v", err)
+	}
+	log.SetOutput(f)
+	log.Printf("=== Usque tunnel log started (path=%s) ===", path)
+	log.Printf("Go version: %s, GOMAXPROCS=%d, GOGC=%d", runtime.Version(), runtime.GOMAXPROCS(0), 30)
+	return ""
+}
+
+// GetTunnelStatus returns the current tunnel connection status and the last
+// error message (if any). Format: "status|lastError"
+//
+// The UI can poll this to display the real connection state instead of
+// relying on the fake "connected" state that fires immediately after
+// startTunnel is called.
+//
+// Possible status values:
+//   - "stopped":     tunnel not started
+//   - "connecting":  MASQUE handshake in progress
+//   - "connected":   tunnel is up and forwarding packets
+//   - "error":       last connection attempt failed (see lastError)
+//   - "disconnected": tunnel was lost, attempting reconnect
+func GetTunnelStatus() string {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.running {
+		return "stopped|"
+	}
+	return state.status + "|" + state.lastError
+}
 
 // Custom connection options
 var (
@@ -280,30 +329,51 @@ func StartTunnel(configPath string, tunFd int, mtu int, packetFlow PacketFlow, c
 	state.cancel = cancel
 	state.running = true
 	state.callback = callback
+	state.status = "connecting"
+	state.lastError = ""
 
 	// Start tunnel maintenance in background
 	go func() {
 		log.Println("Starting MASQUE tunnel...")
 
-		// Notify connected after a brief delay for connection establishment
-		go func() {
-			time.Sleep(3 * time.Second)
+		// statusCb receives real connection events from MaintainTunnel.
+		// This replaces the old fake 3-second timer that fired OnConnected
+		// regardless of whether the MASQUE handshake actually succeeded.
+		statusCb := func(status, detail string) {
+			log.Printf("Tunnel status: %s (%s)", status, detail)
 			state.mu.Lock()
-			running := state.running
-			state.mu.Unlock()
-			if running && callback != nil {
-				callback.OnConnected()
+			state.status = status
+			if status == "error" || status == "disconnected" {
+				state.lastError = detail
+			} else if status == "connected" {
+				state.lastError = ""
 			}
-		}()
+			cb := state.callback
+			state.mu.Unlock()
 
-		api.MaintainTunnel(ctx, tlsConfig, 30*time.Second, 1242, endpoint, tunDevice, mtu, time.Second)
+			// Only fire callbacks for significant state changes.
+			if cb == nil {
+				return
+			}
+			switch status {
+			case "connected":
+				cb.OnConnected()
+			case "error":
+				cb.OnError(detail)
+			case "disconnected":
+				cb.OnDisconnected(detail)
+			}
+		}
 
-		// Tunnel exited
+		api.MaintainTunnel(ctx, tlsConfig, 30*time.Second, 1242, endpoint, tunDevice, mtu, time.Second, statusCb)
+
+		// Tunnel exited (context cancelled or unrecoverable error)
 		log.Println("MASQUE tunnel exited")
 		tunDevice.Close()
 
 		state.mu.Lock()
 		state.running = false
+		state.status = "disconnected"
 		state.mu.Unlock()
 
 		if callback != nil {

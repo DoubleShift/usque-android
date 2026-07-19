@@ -173,12 +173,38 @@ class MainActivity : Activity() {
     }
 
     private fun updateUI() {
-        if (UsqueVpnService.isRunning) {
-            connectButton.text = "Connected"
-            connectButton.setBackgroundResource(R.drawable.button_connected_background)
+        // Get the REAL tunnel status from Go (not the fake "isRunning" flag).
+        // Format: "status|lastError"
+        val tunnelStatus = if (UsqueVpnService.isRunning) {
+            try { Usqueandroid.getTunnelStatus() } catch (e: Exception) { "stopped|" }
         } else {
-            connectButton.text = "Connect"
-            connectButton.setBackgroundResource(R.drawable.button_background)
+            "stopped|"
+        }
+        val parts = tunnelStatus.split("|", limit = 2)
+        val status = parts.getOrNull(0) ?: "stopped"
+        val lastError = parts.getOrNull(1) ?: ""
+
+        when (status) {
+            "connected" -> {
+                connectButton.text = "Connected"
+                connectButton.setBackgroundResource(R.drawable.button_connected_background)
+            }
+            "connecting" -> {
+                connectButton.text = "Connecting…"
+                connectButton.setBackgroundResource(R.drawable.button_background)
+            }
+            "error" -> {
+                connectButton.text = "Retry…"
+                connectButton.setBackgroundResource(R.drawable.button_background)
+            }
+            "disconnected" -> {
+                connectButton.text = "Reconnecting…"
+                connectButton.setBackgroundResource(R.drawable.button_background)
+            }
+            else -> {
+                connectButton.text = "Connect"
+                connectButton.setBackgroundResource(R.drawable.button_background)
+            }
         }
 
         // Show assigned IP if registered
@@ -197,7 +223,19 @@ class MainActivity : Activity() {
         } else {
             Usqueandroid.getDefaultEndpoint(configPath)
         }
-        endpointText.text = "Endpoint: $displayEndpoint"
+
+        // When VPN is running, show the tunnel status/error instead of endpoint
+        if (UsqueVpnService.isRunning) {
+            endpointText.text = when (status) {
+                "connecting" -> "Status: Connecting to $displayEndpoint…"
+                "connected" -> "Status: Tunnel connected"
+                "error" -> "Error: $lastError"
+                "disconnected" -> "Status: Reconnecting ($lastError)"
+                else -> "Status: $status"
+            }
+        } else {
+            endpointText.text = "Endpoint: $displayEndpoint"
+        }
 
         // Per-app proxy status
         val perAppEnabled = prefs.getBoolean(UsqueVpnService.KEY_PER_APP_ENABLED, false)
@@ -206,6 +244,11 @@ class MainActivity : Activity() {
             "On — ${selectedPackages.size} app(s) selected"
         } else {
             "Off — all apps use VPN"
+        }
+
+        // Keep polling while the tunnel is in a non-final state
+        if (UsqueVpnService.isRunning && status != "connected") {
+            connectButton.postDelayed({ updateUI() }, 1000)
         }
     }
 }

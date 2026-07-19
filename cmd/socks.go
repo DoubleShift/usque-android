@@ -186,7 +186,7 @@ var socksCmd = &cobra.Command{
 		}
 		defer tunDev.Close()
 
-		go api.MaintainTunnel(context.Background(), tlsConfig, keepalivePeriod, initialPacketSize, endpoint, api.NewNetstackAdapter(tunDev), mtu, reconnectDelay)
+		go api.MaintainTunnel(context.Background(), tlsConfig, keepalivePeriod, initialPacketSize, endpoint, api.NewNetstackAdapter(tunDev), mtu, reconnectDelay, nil)
 
 		var resolver socks5.NameResolver
 		if localDNS {
