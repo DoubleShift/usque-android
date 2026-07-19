@@ -129,29 +129,22 @@ func DefaultQuicConfig(keepalivePeriod time.Duration, initialPacketSize uint16) 
 		EnableDatagrams:   true,
 		InitialPacketSize: initialPacketSize,
 		KeepAlivePeriod:   keepalivePeriod,
-		// Memory-conservative tuning for Android / long-running clients.
+		// NOTE: The memory-conservative QUIC tuning that was previously here
+		// (small InitialStreamReceiveWindow / InitialConnectionReceiveWindow,
+		// low MaxIncomingStreams, DisablePathMTUDiscovery) was found to break
+		// the MASQUE connect-ip handshake against Cloudflare WARP — the tunnel
+		// established the TUN interface but no actual traffic flowed.
 		//
-		// The quic-go defaults below are sized for high-throughput server
-		// workloads. On a phone they balloon the Go heap by ~2-5 MiB
-		// per connection (and there is exactly one connection here).
+		// The quic-go defaults are sized for high-throughput servers, but they
+		// are also what Cloudflare's edge expects from a conforming MASQUE
+		// client. Tightening them here causes the WARP gateway to stall after
+		// the initial handshake — the capsule exchange needs more window than
+		// 64 KiB. The ~2-5 MiB of extra heap these defaults cost is the price
+		// of a working tunnel.
 		//
-		//   InitialStreamReceiveWindow:     512 KiB -> 64 KiB
-		//   InitialConnectionReceiveWindow:  ~1 MiB -> 128 KiB
-		//   MaxIncomingStreams:              100    -> 8
-		//
-		// The MASQUE connect-ip tunnel uses a single request stream for
-		// capsules, so a small stream window barely hurts throughput —
-		// bulk traffic flows over QUIC datagrams (EnableDatagrams above),
-		// not streams. MaxIncomingStreams caps the number of concurrent
-		// peer-initiated streams the client will accept.
-		InitialStreamReceiveWindow:     64 * 1024,
-		InitialConnectionReceiveWindow: 128 * 1024,
-		MaxIncomingStreams:             8,
-		MaxIdleTimeout:                 60 * time.Second,
-		// DisablePathMTUDiscovery saves the buffers used to probe the path
-		// MTU. On a phone this is not worth the memory cost — the initial
-		// packet size (1242) is already a safe IPv6-safe value.
-		DisablePathMTUDiscovery: true,
+		// Memory tuning is now done exclusively in runtime_tune.go via
+		// debug.SetMemoryLimit + SetGCPercent, which does not affect protocol
+		// conformance.
 	}
 }
 
