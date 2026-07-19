@@ -13,6 +13,29 @@ import (
 	"github.com/Diniboy1123/usque/models"
 )
 
+// apiHTTPClient is a shared *http.Client used for all Cloudflare API calls.
+// The default http.DefaultClient has no timeout, which lets a stuck request
+// pin a goroutine and an in-flight response buffer forever — a real concern
+// on long-running Android processes. We also cap response bodies so a
+// misbehaving server can't force us to allocate unbounded memory.
+var apiHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+	// Transport left as DefaultTransport so we still benefit from the
+	// global keep-alive connection pool to api.cloudflareclient.com.
+}
+
+// maxAPIResponseBytes caps how much of an API response body we will buffer
+// into memory. The /reg and PATCH /reg/{id} responses are well under 10 KiB
+// in practice, so 1 MiB is a generous safety upper bound.
+const maxAPIResponseBytes = 1 << 20 // 1 MiB
+
+// readAPIBody reads a Cloudflare API response body with a hard size cap so we
+// don't blow up memory if the server misbehaves. The cap does not apply to
+// streaming paths — only to the small JSON envelopes used here.
+func readAPIBody(r io.Reader) ([]byte, error) {
+	return io.ReadAll(io.LimitReader(r, maxAPIResponseBytes))
+}
+
 // Register creates a new user account by registering a WireGuard public key and generating a random Android-like device identifier.
 // The WireGuard private key isn't stored anywhere, therefore it won't be usable. It's sole purpose is to mimic the Android app's registration process.
 //
@@ -86,7 +109,7 @@ func Register(model, locale, jwt string, acceptTos bool) (models.AccountData, er
 		req.Header.Set("CF-Access-Jwt-Assertion", jwt)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := apiHTTPClient.Do(req)
 	if err != nil {
 		return models.AccountData{}, fmt.Errorf("failed to send request: %v", err)
 	}
@@ -97,7 +120,9 @@ func Register(model, locale, jwt string, acceptTos bool) (models.AccountData, er
 	}
 
 	var accountData models.AccountData
-	if err := json.NewDecoder(resp.Body).Decode(&accountData); err != nil {
+	// Use the sized reader to cap worst-case allocation if the server
+	// misbehaves; the normal /reg response is small.
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxAPIResponseBytes)).Decode(&accountData); err != nil {
 		return models.AccountData{}, fmt.Errorf("failed to decode response: %v", err)
 	}
 
@@ -149,13 +174,13 @@ func EnrollKey(accountData models.AccountData, pubKey []byte, deviceName string)
 	}
 	req.Header.Set("Authorization", "Bearer "+accountData.Token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := apiHTTPClient.Do(req)
 	if err != nil {
 		return models.AccountData{}, nil, fmt.Errorf("failed to send request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readAPIBody(resp.Body)
 	if err != nil {
 		return models.AccountData{}, nil, fmt.Errorf("failed to read response body: %v", err)
 	}

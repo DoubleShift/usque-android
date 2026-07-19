@@ -43,11 +43,10 @@ type VpnStateCallback interface {
 
 // tunnelState holds the state of the running tunnel
 type tunnelState struct {
-	mu        sync.Mutex
-	running   bool
-	cancel    context.CancelFunc
-	inputChan chan []byte
-	callback  VpnStateCallback
+	mu       sync.Mutex
+	running  bool
+	cancel   context.CancelFunc
+	callback VpnStateCallback
 }
 
 var state = &tunnelState{}
@@ -131,12 +130,15 @@ func GetAssignedIPv6(configPath string) string {
 	return config.AppConfig.IPv6
 }
 
-// AndroidTunDevice wraps the Android TUN file descriptor for packet IO
+// AndroidTunDevice wraps the Android TUN file descriptor for packet IO.
+//
+// The Android side feeds outbound packets (Cloudflare -> TUN) back to us via
+// the PacketFlow callback; we read inbound packets (TUN -> Cloudflare)
+// directly from the file descriptor in ReadPacket.
 type AndroidTunDevice struct {
 	fd       int
 	file     *os.File
 	mtu      int
-	inputCh  chan []byte
 	outputFn PacketFlow
 }
 
@@ -152,7 +154,6 @@ func newAndroidTunDevice(fd int, mtu int, packetFlow PacketFlow) (*AndroidTunDev
 		fd:       fd,
 		file:     file,
 		mtu:      mtu,
-		inputCh:  make(chan []byte, 256),
 		outputFn: packetFlow,
 	}, nil
 }
@@ -303,26 +304,6 @@ func StartTunnel(configPath string, tunFd int, mtu int, packetFlow PacketFlow, c
 
 	log.Println("Tunnel started successfully")
 	return ""
-}
-
-// InputPacket sends an IP packet from Android TUN to the Go tunnel.
-// This should be called by Android whenever a packet is read from the TUN device.
-//
-// Parameters:
-//   - data: The raw IP packet bytes
-func InputPacket(data []byte) {
-	state.mu.Lock()
-	ch := state.inputChan
-	state.mu.Unlock()
-
-	if ch != nil {
-		// Non-blocking send
-		select {
-		case ch <- data:
-		default:
-			// Channel full, drop packet
-		}
-	}
 }
 
 // StopTunnel stops the running tunnel

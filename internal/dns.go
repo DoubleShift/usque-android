@@ -24,6 +24,30 @@ type TunnelDNSResolver struct {
 	Timeout time.Duration
 }
 
+// buildResolvers constructs one *net.Resolver per configured DNS server, all sharing
+// the same dial closure over the (immutable) TunNet. This replaces the previous
+// per-goroutine per-query allocation pattern, where every concurrent lookup
+// rebuilt its own *net.Resolver and Dial closure.
+func (r TunnelDNSResolver) buildResolvers() []*net.Resolver {
+	resolvers := make([]*net.Resolver, len(r.DNSAddrs))
+	tunNet := r.TunNet // capture once; not mutated after construction
+	for i, dnsAddr := range r.DNSAddrs {
+		dnsHost := net.JoinHostPort(dnsAddr.String(), "53")
+		var dialFunc func(context.Context, string, string) (net.Conn, error)
+		if tunNet != nil {
+			dialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+				return tunNet.DialContext(ctx, "udp", dnsHost)
+			}
+		} else {
+			dialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+				return net.Dial("udp", dnsHost)
+			}
+		}
+		resolvers[i] = &net.Resolver{PreferGo: true, Dial: dialFunc}
+	}
+	return resolvers
+}
+
 // Resolve performs a DNS lookup using the provided DNS resolvers.
 // It tries each resolver in order until one succeeds, sending queries either through the tunnel
 // or over the system network depending on TunNet.
@@ -41,6 +65,10 @@ func (r TunnelDNSResolver) Resolve(ctx context.Context, name string) (context.Co
 		return ctx, nil, fmt.Errorf("no DNS servers configured")
 	}
 
+	// Build the per-server resolvers once per call and share them across the
+	// parallel lookup goroutines (previously: one resolver per goroutine).
+	resolvers := r.buildResolvers()
+
 	var queryCtx context.Context = ctx
 	var cancel context.CancelFunc
 	if r.Timeout > 0 {
@@ -52,38 +80,23 @@ func (r TunnelDNSResolver) Resolve(ctx context.Context, name string) (context.Co
 		ip  net.IP
 		err error
 	}
-	results := make(chan result, len(r.DNSAddrs))
+	results := make(chan result, len(resolvers))
 
-	for _, dnsAddr := range r.DNSAddrs {
-		dnsHost := net.JoinHostPort(dnsAddr.String(), "53")
-
-		go func(dnsHost string) {
-			var dialFunc func(context.Context, string, string) (net.Conn, error)
-			if r.TunNet != nil {
-				dialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-					return r.TunNet.DialContext(ctx, "udp", dnsHost)
-				}
-			} else {
-				dialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-					return net.Dial("udp", dnsHost)
-				}
-			}
-
-			resolver := &net.Resolver{
-				PreferGo: true,
-				Dial:     dialFunc,
-			}
-			ips, err := resolver.LookupIP(queryCtx, "ip", name)
+	for i := range resolvers {
+		// Capture the loop variable so each goroutine uses its own resolver.
+		res := resolvers[i]
+		go func() {
+			ips, err := res.LookupIP(queryCtx, "ip", name)
 			if err == nil && len(ips) > 0 {
 				results <- result{ip: ips[0], err: nil}
 			} else {
 				results <- result{ip: nil, err: err}
 			}
-		}(dnsHost)
+		}()
 	}
 
 	var lastErr error
-	for i := 0; i < len(r.DNSAddrs); i++ {
+	for i := 0; i < len(resolvers); i++ {
 		res := <-results
 		if res.err == nil && res.ip != nil {
 			if cancel != nil {

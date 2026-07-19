@@ -323,8 +323,16 @@ func handleConnection(localConn net.Conn, pm internal.PortMapping, isRemote bool
 	}
 	defer remoteConn.Close()
 
-	go func() { io.Copy(remoteConn, localConn) }()
-	io.Copy(localConn, remoteConn)
+	// Two-direction relay with pooled 32 KiB buffers (was io.Copy with a
+	// fresh 32 KiB alloc per direction per connection = 64 KiB/conn).
+	go func() {
+		buf := getCopyBuf()
+		defer putCopyBuf(buf)
+		io.CopyBuffer(remoteConn, localConn, buf)
+	}()
+	buf := getCopyBuf()
+	defer putCopyBuf(buf)
+	io.CopyBuffer(localConn, remoteConn, buf)
 }
 
 func init() {

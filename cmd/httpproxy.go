@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/Diniboy1123/usque/api"
@@ -16,6 +17,65 @@ import (
 	"github.com/spf13/cobra"
 	"golang.zx2c4.com/wireguard/tun/netstack"
 )
+
+// proxyCopyBufPool provides a 32 KiB scratch buffer per direction of a tunneled
+// TCP connection. Replacing io.Copy (which allocates a fresh 32 KiB buffer per
+// call) with io.CopyBuffer + this pool removes ~64 KiB of garbage per active
+// proxied connection and lets the GC run less often under load.
+var proxyCopyBufPool = sync.Pool{
+	New: func() interface{} {
+		// io.CopyBuffer only needs len > 0; 32 KiB matches io.Copy's default
+		// so throughput is unchanged.
+		b := make([]byte, 32*1024)
+		return &b
+	},
+}
+
+func getCopyBuf() []byte  { return *proxyCopyBufPool.Get().(*[]byte) }
+func putCopyBuf(b []byte) { proxyCopyBufPool.Put(&b) }
+
+// tunnelProxyClient is a single shared *http.Client whose Transport reuses
+// keep-alive connections through the MASQUE tunnel. Building a fresh
+// *http.Client + *http.Transport per proxied request (the previous design)
+// prevents any connection reuse and leaks idle conns in the transport's pool
+// until GC eventually finalizes them — a major memory hog under sustained
+// proxy traffic.
+type tunnelProxyClient struct {
+	client *http.Client
+}
+
+// newTunnelProxyClient builds a client that dials through tunNet, optionally
+// resolving hostnames via resolver (may be nil).
+func newTunnelProxyClient(tunNet *netstack.Net, resolver *net.Resolver) *tunnelProxyClient {
+	tr := &http.Transport{
+		// Keep-alive conns are pooled (DisableDefaultKeepAlives is false).
+		// We cap the per-host idle pool so a single hot host can't pin a
+		// lot of memory; the global cap bounds overall idle footprint.
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid address: %w", err)
+			}
+
+			var dialAddr string
+			if resolver != nil {
+				ips, err := resolver.LookupIP(ctx, "ip", host)
+				if err != nil || len(ips) == 0 {
+					return nil, fmt.Errorf("DNS resolution failed for %s: %w", host, err)
+				}
+				dialAddr = net.JoinHostPort(ips[0].String(), port)
+			} else {
+				dialAddr = addr
+			}
+
+			return tunNet.DialContext(ctx, network, dialAddr)
+		},
+	}
+	return &tunnelProxyClient{client: &http.Client{Transport: tr}}
+}
 
 var httpProxyCmd = &cobra.Command{
 	Use:   "http-proxy",
@@ -196,6 +256,11 @@ var httpProxyCmd = &cobra.Command{
 
 		go api.MaintainTunnel(context.Background(), tlsConfig, keepalivePeriod, initialPacketSize, endpoint, api.NewNetstackAdapter(tunDev), mtu, reconnectDelay)
 
+		// Single shared client for all proxied HTTP requests — keeps a
+		// keep-alive connection pool to the destination hosts through the
+		// tunnel instead of allocating a new transport per request.
+		proxyClient := newTunnelProxyClient(tunNet, resolver)
+
 		server := &http.Server{
 			Addr: net.JoinHostPort(bindAddress, port),
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -208,7 +273,7 @@ var httpProxyCmd = &cobra.Command{
 				if r.Method == http.MethodConnect {
 					handleHTTPSConnect(w, r, tunNet, resolver)
 				} else {
-					handleHTTPProxy(w, r, tunNet, resolver)
+					handleHTTPProxy(w, r, proxyClient)
 				}
 			}),
 		}
@@ -288,51 +353,30 @@ func handleHTTPSConnect(w http.ResponseWriter, r *http.Request, tunNet *netstack
 		return
 	}
 
+	// Two-direction relay with pooled buffers (was io.Copy with 32 KiB
+	// scratch buffer per direction per connection = 64 KiB/conn of garbage).
 	go func() {
 		defer destConn.Close()
 		defer clientConn.Close()
-		io.Copy(destConn, clientConn)
+		buf := getCopyBuf()
+		defer putCopyBuf(buf)
+		io.CopyBuffer(destConn, clientConn, buf)
 	}()
-	io.Copy(clientConn, destConn)
+	defer clientConn.Close()
+	defer destConn.Close()
+	buf := getCopyBuf()
+	defer putCopyBuf(buf)
+	io.CopyBuffer(clientConn, destConn, buf)
 }
 
-// handleHTTPProxy forwards HTTP proxy requests to the destination and relays responses back to the client using the provided resolver.
+// handleHTTPProxy forwards HTTP proxy requests to the destination and relays
+// responses back to the client using the shared tunnel proxy client.
 //
 // Parameters:
 //   - w: http.ResponseWriter - The response writer for the HTTP request.
 //   - r: *http.Request - The incoming HTTP request.
-//   - tunNet: *netstack.Net - The netstack network interface.
-//   - resolver: *net.Resolver - The DNS resolver to use for the tunnel.
-func handleHTTPProxy(w http.ResponseWriter, r *http.Request, tunNet *netstack.Net, resolver *net.Resolver) {
-	port := r.URL.Port()
-	if port == "" {
-		port = "80"
-	}
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				host, port, err := net.SplitHostPort(addr)
-				if err != nil {
-					return nil, fmt.Errorf("invalid address: %w", err)
-				}
-
-				var dialAddr string
-				if resolver != nil {
-					ips, err := resolver.LookupIP(ctx, "ip", host)
-					if err != nil || len(ips) == 0 {
-						return nil, fmt.Errorf("DNS resolution failed for %s: %w", host, err)
-					}
-					dialAddr = net.JoinHostPort(ips[0].String(), port)
-				} else {
-					dialAddr = addr
-				}
-
-				return tunNet.DialContext(ctx, network, dialAddr)
-			},
-		},
-	}
-
+//   - proxyClient: *tunnelProxyClient - Shared keep-alive HTTP client bound to the tunnel.
+func handleHTTPProxy(w http.ResponseWriter, r *http.Request, proxyClient *tunnelProxyClient) {
 	req, err := http.NewRequestWithContext(r.Context(), r.Method, r.URL.String(), r.Body)
 	if err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
@@ -340,7 +384,7 @@ func handleHTTPProxy(w http.ResponseWriter, r *http.Request, tunNet *netstack.Ne
 	}
 	req.Header = r.Header.Clone()
 
-	resp, err := client.Do(req)
+	resp, err := proxyClient.client.Do(req)
 	if err != nil {
 		http.Error(w, "Failed to reach destination", http.StatusServiceUnavailable)
 		return
@@ -349,7 +393,12 @@ func handleHTTPProxy(w http.ResponseWriter, r *http.Request, tunNet *netstack.Ne
 
 	copyHeader(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+
+	// Stream response body through a pooled buffer instead of letting io.Copy
+	// allocate a fresh 32 KiB one for every response.
+	buf := getCopyBuf()
+	defer putCopyBuf(buf)
+	io.CopyBuffer(w, resp.Body, buf)
 }
 
 // copyHeader copies HTTP headers from one header map to another.
