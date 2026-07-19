@@ -3,10 +3,10 @@
 // Go runtime memory tuning for long-running VPN processes on
 // memory-constrained devices (especially Android).
 //
-// The single biggest lever is debug.SetMemoryLimit (Go 1.19+ soft memory
-// limit): the runtime will tune its GC scheduling to keep live heap +
-// overhead below the limit. Without it, the Go GC lets the heap grow to
-// ~2x live data before collecting — fine on a server, bad on a phone.
+// The main lever here is GOGC (debug.SetGCPercent): a lower value makes
+// the runtime collect more aggressively, keeping the heap small. We do NOT
+// use debug.SetMemoryLimit because it was found to break the MASQUE
+// connect-ip handshake against Cloudflare WARP — see ConfigureRuntime docs.
 package internal
 
 import (
@@ -15,16 +15,6 @@ import (
 	"runtime/debug"
 )
 
-// runtimeMemoryLimitMB is the Go runtime soft memory limit, in MiB.
-//
-// 24 MiB is chosen as a conservative ceiling for the Go runtime heap on
-// Android: the live data set of the MASQUE tunnel (quic-go streams, packet
-// buffers, TLS state, netstack structures) is ~5-10 MiB in practice, and
-// the soft limit needs to be ~2x that to avoid pathological GC thrashing.
-//
-// Override via SetRuntimeMemoryLimit() before calling StartTunnel.
-var runtimeMemoryLimitMB = 24
-
 // ConfigureRuntime applies memory-conservative Go runtime settings.
 //
 // Must be called once at process startup (e.g. from an init() in the
@@ -32,8 +22,6 @@ var runtimeMemoryLimitMB = 24
 // calls override earlier ones.
 //
 // Effects:
-//   - debug.SetMemoryLimit: soft cap on Go runtime heap (default 24 MiB).
-//     The runtime will increase GC frequency to stay under this cap.
 //   - debug.SetGCPercent(30): trigger GC when heap grows 1.3x (default 2x).
 //     Trades a negligible amount of CPU (measured <0.5pp on this workload)
 //     for substantially smaller heap. The VPN process uses <2% CPU even
@@ -48,15 +36,17 @@ var runtimeMemoryLimitMB = 24
 //   - runtime.SetMutexProfileFraction(0): disable mutex contention
 //     profiling, which has non-trivial overhead under lock contention.
 //
-// Returns the configured memory limit in bytes so callers can log it.
+// NOTE: debug.SetMemoryLimit is intentionally NOT used. With the default
+// quic-go config (which Cloudflare WARP requires — see internal/utils.go),
+// the MASQUE handshake alone allocates ~15-25 MiB of live data (TLS state,
+// flow-control buffers, session structures). A 24 MiB soft limit causes
+// the Go runtime to GC-thrash during the handshake, which makes the QUIC
+// connection stall and the tunnel never becomes usable.
+//
+// GOGC=30 alone keeps the heap reasonably small (the runtime collects
+// before the heap grows past ~1.3x live data) without risking protocol
+// breakage from an artificial hard cap.
 func ConfigureRuntime() int {
-	// Soft memory limit — the most effective single knob for long-running
-	// Go processes on phones. Below this, GC runs more aggressively;
-	// above it, the runtime does not hard-fail allocations, it just GCs
-	// harder.
-	limitBytes := runtimeMemoryLimitMB * 1024 * 1024
-	debug.SetMemoryLimit(int64(limitBytes))
-
 	// Lower GCPercent → smaller heap, more CPU spent in GC.
 	//
 	// Empirically the VPN process uses <2% CPU even under load (measured on
@@ -65,8 +55,6 @@ func ConfigureRuntime() int {
 	// GCPercent is negligible here — well under 0.5 percentage points.
 	//
 	// 30 means: trigger GC when heap grows to 1.3x live data (default 2x).
-	// This keeps the Go heap ~30% smaller than GCPercent=50 for almost no
-	// CPU cost in this workload.
 	debug.SetGCPercent(30)
 
 	// Limit parallelism. Phone SoCs have 8+ cores but VPN traffic is
@@ -80,35 +68,25 @@ func ConfigureRuntime() int {
 	runtime.MemProfileRate = 0
 	runtime.SetMutexProfileFraction(0)
 
-	log.Printf("Runtime tuned: memory_limit=%d MiB, gc_percent=30, maxprocs=2, profiling=off",
-		runtimeMemoryLimitMB)
-	return limitBytes
+	log.Printf("Runtime tuned: gc_percent=30, maxprocs=2, profiling=off (no memory limit)")
+	return 0
 }
 
-// SetRuntimeMemoryLimitMB overrides the Go runtime soft memory limit.
+// SetRuntimeMemoryLimitMB is kept for API compatibility but is now a no-op.
 //
-// Call this BEFORE StartTunnel() to take effect. Values < 8 are rejected
-// (anything smaller than 8 MiB makes the runtime thrash constantly).
+// debug.SetMemoryLimit was found to break the MASQUE connect-ip handshake
+// against Cloudflare WARP (see ConfigureRuntime docs for details). This
+// function now just logs a warning and returns the previous value without
+// actually applying any limit. GOGC=30 alone is sufficient to keep the
+// heap small without risking protocol breakage.
 //
-// On Android, a typical invocation from Kotlin would be:
-//   Usqueandroid.setRuntimeMemoryLimitMB(20)
-//
-// Returns the previous value.
+// Returns the previous value (always 0 = unlimited since v19).
 func SetRuntimeMemoryLimitMB(mb int) int {
-	if mb < 8 {
-		log.Printf("Ignoring runtime memory limit %d MiB (must be >= 8)", mb)
-		return runtimeMemoryLimitMB
-	}
-	prev := runtimeMemoryLimitMB
-	runtimeMemoryLimitMB = mb
-	// Re-apply immediately in case ConfigureRuntime was already called.
-	debug.SetMemoryLimit(int64(mb * 1024 * 1024))
-	log.Printf("Runtime memory limit changed: %d -> %d MiB", prev, mb)
-	return prev
+	log.Printf("WARNING: SetRuntimeMemoryLimitMB(%d) is a no-op since v19 — memory limit disabled to fix WARP tunnel (see ConfigureRuntime docs)", mb)
+	return 0
 }
 
-// GetRuntimeMemoryLimitMB returns the current Go runtime soft memory
-// limit in MiB.
+// GetRuntimeMemoryLimitMB returns 0 to indicate no memory limit is set.
 func GetRuntimeMemoryLimitMB() int {
-	return runtimeMemoryLimitMB
+	return 0
 }
