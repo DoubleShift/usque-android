@@ -200,7 +200,13 @@ class UsqueVpnService : VpnService() {
 
             // Redirect Go's log output to a file so we can read it via adb
             // even on devices where logcat is OEM-restricted (e.g. Meizu).
-            val logPath = "${filesDir.absolutePath}/tunnel.log"
+            // Use external app storage so adb shell can read it without root
+            // (internal storage /data/data/.../files is not accessible via
+            // `adb shell run-as` on release builds, and /proc/<pid>/fd needs
+            // root). External path /sdcard/Android/data/<pkg>/files/ is
+            // world-readable via adb shell.
+            val logDir = getExternalFilesDir(null)?.absolutePath ?: filesDir.absolutePath
+            val logPath = "$logDir/tunnel.log"
             val logErr = Usqueandroid.setLogPath(logPath)
             if (logErr.isNotEmpty()) {
                 Log.w(TAG, "Failed to set Go log path: $logErr")
