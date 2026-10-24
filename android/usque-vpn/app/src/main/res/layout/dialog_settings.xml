@@ -6,8 +6,45 @@
     android:padding="24dp"
     android:background="#f5f3ef">
 
-    <!-- SNI Input -->
+    <!-- Protocol -->
     <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Protocol"
+        android:textColor="#668863"
+        android:textSize="12sp"
+        android:fontFamily="sans-serif-medium"
+        android:layout_marginBottom="4dp" />
+
+    <RadioGroup
+        android:id="@+id/protocol_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <RadioButton
+            android:id="@+id/protocol_masque"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MASQUE"
+            android:textColor="#3d3d3d"
+            android:textSize="14sp" />
+
+        <RadioButton
+            android:id="@+id/protocol_wg"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:text="WireGuard"
+            android:textColor="#3d3d3d"
+            android:textSize="14sp" />
+
+    </RadioGroup>
+
+    <!-- SNI Input (MASQUE only) -->
+    <TextView
+        android:id="@+id/sni_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="SNI (Server Name Indication)"
@@ -28,6 +65,7 @@
 
     <!-- Endpoint Input -->
     <TextView
+        android:id="@+id/endpoint_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Endpoint (host:port)"
@@ -47,6 +85,7 @@
         android:layout_marginBottom="8dp" />
 
     <TextView
+        android:id="@+id/endpoint_hint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Supported formats:\n• IPv4: 162.159.198.1:443\n• IPv6: [2606:4700:103::1]:443\n• Without port defaults to 443"

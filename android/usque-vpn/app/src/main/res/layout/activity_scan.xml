@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#f5f3ef">
+
+    <!-- Top bar: title + back -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="20dp">
+
+        <TextView
+            android:id="@+id/scan_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:text="Endpoint Scanner"
+            android:textSize="22sp"
+            android:fontFamily="sans-serif-light"
+            android:textColor="#668863"
+            android:letterSpacing="0.08" />
+
+        <Button
+            android:id="@+id/back_button"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:text="Back"
+            android:textColor="#3d3d3d"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif-medium"
+            android:background="@drawable/button_circle_background"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp" />
+
+    </RelativeLayout>
+
+    <!-- Status + progress card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/card_background"
+        android:padding="18dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/scan_status_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Finds which Cloudflare WARP endpoints work on this network, their exit node and latency. Uses the WireGuard device."
+            android:textSize="14sp"
+            android:fontFamily="sans-serif"
+            android:textColor="#3d3d3d" />
+
+        <ProgressBar
+            android:id="@+id/scan_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:max="100"
+            android:progress="0" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp">
+
+            <Button
+                android:id="@+id/scan_start_button"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:text="Start Scan"
+                android:textColor="#f5f3ef"
+                android:textSize="14sp"
+                android:background="@drawable/button_rect_primary" />
+
+            <Button
+                android:id="@+id/scan_stop_button"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:text="Stop"
+                android:textColor="#3d3d3d"
+                android:textSize="14sp"
+                android:background="@drawable/button_rect_secondary"
+                android:enabled="false" />
+
+        </LinearLayout>
+
+        <CheckBox
+            android:id="@+id/scan_full_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Full scan (all 256 addresses per subnet — slow)"
+            android:textSize="13sp"
+            android:textColor="#3d3d3d" />
+
+    </LinearLayout>
+
+    <!-- Results list -->
+    <ListView
+        android:id="@+id/scan_results_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:divider="#e0ddd6"
+        android:dividerHeight="1dp"
+        android:cacheColorHint="#00000000" />
+
+</LinearLayout>

@@ -11,6 +11,12 @@ import (
 )
 
 // Config represents the application configuration structure, containing essential details such as keys, endpoints, and access tokens.
+//
+// A config may carry two independent WARP devices: the MASQUE device (the
+// ECDSA identity below) and an optional WireGuard device (the Wg* fields).
+// Cloudflare keys a device to exactly one tunnel type, so a second
+// registration is performed to obtain the WireGuard identity; the two share
+// nothing but the WARP account backend.
 type Config struct {
 	PrivateKey     string `json:"private_key"`      // Base64-encoded ECDSA private key
 	EndpointV4     string `json:"endpoint_v4"`      // IPv4 address of the endpoint
@@ -21,6 +27,20 @@ type Config struct {
 	AccessToken    string `json:"access_token"`     // Authentication token for API access
 	IPv4           string `json:"ipv4"`             // Assigned IPv4 address
 	IPv6           string `json:"ipv6"`             // Assigned IPv6 address
+
+	WgPrivateKey  string `json:"wg_private_key,omitempty"`  // Base64 curve25519 private key of the WireGuard device
+	WgPeerKey     string `json:"wg_peer_key,omitempty"`     // Base64 curve25519 public key of the Cloudflare WireGuard peer
+	WgEndpointV4  string `json:"wg_endpoint_v4,omitempty"`  // Default WireGuard endpoint host:port (IPv4)
+	WgEndpointV6  string `json:"wg_endpoint_v6,omitempty"`  // Default WireGuard endpoint [host]:port (IPv6)
+	WgIPv4        string `json:"wg_ipv4,omitempty"`         // WireGuard device assigned IPv4 address
+	WgIPv6        string `json:"wg_ipv6,omitempty"`         // WireGuard device assigned IPv6 address
+	WgDeviceID    string `json:"wg_device_id,omitempty"`    // WireGuard device ID (for reference/rotation)
+	WgAccessToken string `json:"wg_access_token,omitempty"` // WireGuard device API token
+}
+
+// HasWgDevice reports whether a WireGuard device identity is present.
+func (c *Config) HasWgDevice() bool {
+	return c.WgPrivateKey != "" && c.WgPeerKey != ""
 }
 
 // AppConfig holds the global application configuration.

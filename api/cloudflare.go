@@ -78,7 +78,7 @@ func Register(model, locale, jwt string, acceptTos bool) (models.AccountData, er
 		}
 	}
 
-	data := models.Registration{
+	return postRegistration(models.Registration{
 		Key:       wgKey,
 		InstallID: "",
 		FcmToken:  "",
@@ -89,8 +89,51 @@ func Register(model, locale, jwt string, acceptTos bool) (models.AccountData, er
 		KeyType:   internal.KeyTypeWg,
 		TunType:   internal.TunTypeWg,
 		Locale:    locale,
+	}, jwt)
+}
+
+// RegisterWithWgKey registers a new WireGuard-typed device using a
+// caller-supplied curve25519 public key instead of a throwaway key. The
+// matching private key never leaves the caller, which is what makes the
+// resulting device usable for a WireGuard tunnel (unlike Register, whose
+// WireGuard private key is discarded — there the registration only exists to
+// be upgraded to MASQUE by EnrollKey).
+//
+// The response carries the device's WireGuard config: the Cloudflare peer
+// public key (peers[0].public_key, base64 curve25519) and the assigned
+// interface addresses.
+//
+// Parameters:
+//   - model: string - The device model string to register. (e.g., "PC")
+//   - locale: string - The user's locale. (e.g., "en-US")
+//   - wgPubKey: string - The base64-encoded curve25519 public key to register.
+//
+// Returns:
+//   - models.AccountData: The account data returned from the registration.
+//   - error:              An error if registration fails.
+func RegisterWithWgKey(model, locale, wgPubKey string) (models.AccountData, error) {
+	serial, err := internal.GenerateRandomAndroidSerial()
+	if err != nil {
+		return models.AccountData{}, fmt.Errorf("failed to generate serial: %v", err)
 	}
 
+	return postRegistration(models.Registration{
+		Key:       wgPubKey,
+		InstallID: "",
+		FcmToken:  "",
+		Tos:       internal.TimeAsCfString(time.Now()),
+		Model:     model,
+		Serial:    serial,
+		OsVersion: "",
+		KeyType:   internal.KeyTypeWg,
+		TunType:   internal.TunTypeWg,
+		Locale:    locale,
+	}, "")
+}
+
+// postRegistration marshals the registration payload and performs the POST /reg
+// request, decoding the account data response.
+func postRegistration(data models.Registration, jwt string) (models.AccountData, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return models.AccountData{}, fmt.Errorf("failed to marshal json: %v", err)

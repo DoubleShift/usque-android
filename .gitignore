@@ -46,3 +46,8 @@ android/usque-vpn/gradle/wrapper/gradle-wrapper.jar
 .idea/
 *.iml
 .vscode/
+
+# Local Go build output and APK artifacts
+/build/
+/build14/
+/build-artifacts/

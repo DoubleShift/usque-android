@@ -10,18 +10,19 @@ import usqueandroid.VpnStateCallback
 import java.io.FileOutputStream
 
 /**
- * UsqueVpnService provides a system-level VPN using Cloudflare WARP/MASQUE protocol.
+ * UsqueVpnService provides a system-level VPN using Cloudflare WARP over
+ * MASQUE/QUIC or WireGuard (protocol selected in settings).
  *
  * The service works by:
  * 1. Creating a TUN interface that captures all device traffic
  * 2. Passing the TUN file descriptor to the Go library
- * 3. Go library handles all traffic forwarding through MASQUE/QUIC to Cloudflare
+ * 3. Go library handles all traffic forwarding to Cloudflare
  *
  * Per-app mode: when enabled in SharedPreferences, only the user-selected apps
  * will have their traffic routed through the VPN (allowlist via
  * [android.net.VpnService.Builder.addAllowedApplication]). The VPN app itself
- * is always excluded so the outbound QUIC connection to Cloudflare does not
- * loop back through the TUN interface.
+ * is always excluded so the outbound QUIC/WireGuard connection to Cloudflare
+ * does not loop back through the TUN interface.
  */
 class UsqueVpnService : VpnService() {
 
@@ -69,6 +70,22 @@ class UsqueVpnService : VpnService() {
             return START_STICKY
         }
 
+        // Setup makes network calls (device registration if needed) and must
+        // not run on the main thread. VpnService.Builder.establish() and the
+        // Go bridge are safe from a worker thread.
+        Thread {
+            try {
+                setupAndStart()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start VPN", e)
+                stopSelf()
+            }
+        }.start()
+
+        return START_STICKY
+    }
+
+    private fun setupAndStart() {
         val configPath = "${filesDir.absolutePath}/config.json"
 
         // Check registration
@@ -78,27 +95,54 @@ class UsqueVpnService : VpnService() {
             if (error.isNotEmpty()) {
                 Log.e(TAG, "Registration failed: $error")
                 stopSelf()
-                return START_NOT_STICKY
+                return
             }
             Log.i(TAG, "Registration successful")
         }
 
-        // Get assigned IP addresses
-        val vpnIpv4 = Usqueandroid.getAssignedIPv4(configPath)
-        val vpnIpv6 = Usqueandroid.getAssignedIPv6(configPath)
+        // Tunnel protocol: MASQUE (default) or WireGuard
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val proto = prefs.getString(MainActivity.KEY_PROTOCOL, MainActivity.PROTO_MASQUE)
+            ?: MainActivity.PROTO_MASQUE
+        Log.i(TAG, "Tunnel protocol: $proto")
+
+        // The WireGuard protocol keys to its own WARP device; register it on
+        // first use (a second /reg against the Cloudflare API).
+        if (proto == MainActivity.PROTO_WG && !Usqueandroid.hasWgDevice(configPath)) {
+            Log.i(TAG, "Registering WireGuard device...")
+            val wgError = Usqueandroid.registerWg(configPath)
+            if (wgError.isNotEmpty()) {
+                Log.e(TAG, "WireGuard registration failed: $wgError")
+                stopSelf()
+                return
+            }
+            Log.i(TAG, "WireGuard device registered")
+        }
+
+        // Get assigned IP addresses (each protocol has its own device/addresses)
+        val vpnIpv4 = if (proto == MainActivity.PROTO_WG) {
+            Usqueandroid.getWgAssignedIPv4(configPath)
+        } else {
+            Usqueandroid.getAssignedIPv4(configPath)
+        }
+        val vpnIpv6 = if (proto == MainActivity.PROTO_WG) {
+            Usqueandroid.getWgAssignedIPv6(configPath)
+        } else {
+            Usqueandroid.getAssignedIPv6(configPath)
+        }
 
         Log.i(TAG, "Assigned IPs: v4=$vpnIpv4, v6=$vpnIpv6")
 
         if (vpnIpv4.isEmpty()) {
             Log.e(TAG, "No IPv4 address assigned")
             stopSelf()
-            return START_NOT_STICKY
+            return
         }
 
         // Create VPN interface
         try {
             val builder = Builder()
-                .setSession("Usque WARP VPN")
+                .setSession("Usque WARP VPN ($proto)")
                 .setMtu(1280)
 
             // Add IPv4 address and route
@@ -131,10 +175,10 @@ class UsqueVpnService : VpnService() {
             //
             // Strategy:
             //   - Per-app ON  → allowlist mode: only selected apps use VPN.
-            //     Our own app is NOT in the allowlist, so its QUIC/MASQUE outbound
-            //     connection to Cloudflare bypasses the TUN interface (no loop).
+            //     Our own app is NOT in the allowlist, so its QUIC/MASQUE or
+            //     WireGuard outbound connection to Cloudflare bypasses the TUN
+            //     interface (no loop).
             //   - Per-app OFF → blocklist mode: all apps use VPN except our own.
-            val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
             val perAppEnabled = prefs.getBoolean(KEY_PER_APP_ENABLED, false)
             val selectedPackages = prefs.getStringSet(KEY_PER_APP_PACKAGES, emptySet()) ?: emptySet()
 
@@ -159,7 +203,7 @@ class UsqueVpnService : VpnService() {
             if (vpnInterface == null) {
                 Log.e(TAG, "Failed to establish VPN interface")
                 stopSelf()
-                return START_NOT_STICKY
+                return
             }
 
             val fd = vpnInterface!!.fd
@@ -185,16 +229,16 @@ class UsqueVpnService : VpnService() {
             // Create state callback
             val callback = object : VpnStateCallback {
                 override fun onConnected() {
-                    Log.i(TAG, "MASQUE tunnel connected to Cloudflare!")
+                    Log.i(TAG, "$proto tunnel connected to Cloudflare!")
                 }
 
                 override fun onDisconnected(reason: String?) {
-                    Log.w(TAG, "MASQUE tunnel disconnected: $reason")
+                    Log.w(TAG, "$proto tunnel disconnected: $reason")
                     disconnect()
                 }
 
                 override fun onError(message: String?) {
-                    Log.e(TAG, "MASQUE tunnel error: $message")
+                    Log.e(TAG, "$proto tunnel error: $message")
                 }
             }
 
@@ -215,13 +259,13 @@ class UsqueVpnService : VpnService() {
             }
 
             // Start the Go tunnel with our TUN file descriptor
-            val tunnelError = Usqueandroid.startTunnel(configPath, fd.toLong(), 1280, packetFlow, callback)
+            val tunnelError = Usqueandroid.startTunnel(configPath, fd.toLong(), 1280, proto, packetFlow, callback)
             if (tunnelError.isNotEmpty()) {
                 Log.e(TAG, "Failed to start tunnel: $tunnelError")
                 isRunning = false
                 vpnInterface?.close()
                 stopSelf()
-                return START_NOT_STICKY
+                return
             }
 
             Log.i(TAG, "VPN Service started successfully!")
@@ -229,10 +273,8 @@ class UsqueVpnService : VpnService() {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create VPN interface", e)
             stopSelf()
-            return START_NOT_STICKY
+            return
         }
-
-        return START_STICKY
     }
 
     /**

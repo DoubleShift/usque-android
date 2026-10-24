@@ -8,6 +8,7 @@ package usqueandroid
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -16,12 +17,20 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/Diniboy1123/usque/api"
 	"github.com/Diniboy1123/usque/config"
 	"github.com/Diniboy1123/usque/internal"
+	"github.com/Diniboy1123/usque/internal/scanner"
+)
+
+// Protocol selectors for StartTunnel.
+const (
+	ProtoMasque    = "masque"
+	ProtoWireGuard = "wg"
 )
 
 // init applies memory-conservative Go runtime settings the moment the .so
@@ -243,18 +252,21 @@ func (d *AndroidTunDevice) Close() error {
 }
 
 // StartTunnel starts the VPN tunnel using the provided TUN file descriptor.
-// This function connects directly to Cloudflare WARP and forwards all traffic.
+// proto selects the tunnel protocol: "wg" runs a WireGuard tunnel (requires
+// RegisterWg to have created the WireGuard device), anything else runs the
+// MASQUE/QUIC tunnel.
 //
 // Parameters:
 //   - configPath: Path to the config.json file
 //   - tunFd: The file descriptor of the Android TUN interface
 //   - mtu: MTU size (usually 1280)
+//   - proto: "wg" for WireGuard, "masque" (or "") for MASQUE
 //   - packetFlow: Interface for writing packets back to Android TUN
 //   - callback: State callback interface (can be nil)
 //
 // Returns:
 //   - error string if startup fails, empty string on success
-func StartTunnel(configPath string, tunFd int, mtu int, packetFlow PacketFlow, callback VpnStateCallback) string {
+func StartTunnel(configPath string, tunFd int, mtu int, proto string, packetFlow PacketFlow, callback VpnStateCallback) string {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
@@ -262,38 +274,18 @@ func StartTunnel(configPath string, tunFd int, mtu int, packetFlow PacketFlow, c
 		return "Tunnel is already running"
 	}
 
-	log.Printf("StartTunnel called: configPath=%s, tunFd=%d, mtu=%d", configPath, tunFd, mtu)
+	log.Printf("StartTunnel called: configPath=%s, tunFd=%d, mtu=%d, proto=%s", configPath, tunFd, mtu, proto)
 
 	// Load config
 	if err := config.LoadConfig(configPath); err != nil {
 		return fmt.Sprintf("Failed to load config: %v", err)
 	}
 
-	// Get keys
-	privKey, err := config.AppConfig.GetEcPrivateKey()
-	if err != nil {
-		return fmt.Sprintf("Failed to get private key: %v", err)
+	if proto != ProtoWireGuard {
+		proto = ProtoMasque
 	}
-	peerPubKey, err := config.AppConfig.GetEcEndpointPublicKey()
-	if err != nil {
-		return fmt.Sprintf("Failed to get peer public key: %v", err)
-	}
-
-	// Generate certificate
-	cert, err := internal.GenerateCert(privKey, &privKey.PublicKey)
-	if err != nil {
-		return fmt.Sprintf("Failed to generate cert: %v", err)
-	}
-
-	// Prepare TLS config with custom SNI
-	sni := customSNI
-	if sni == "" {
-		sni = internal.ConnectSNI
-	}
-	log.Printf("Using SNI: %s", sni)
-	tlsConfig, err := api.PrepareTlsConfig(privKey, peerPubKey, cert, sni)
-	if err != nil {
-		return fmt.Sprintf("Failed to prepare TLS: %v", err)
+	if proto == ProtoWireGuard && !config.AppConfig.HasWgDevice() {
+		return "No WireGuard device registered - call RegisterWg first"
 	}
 
 	// Create Android TUN device wrapper
@@ -302,10 +294,9 @@ func StartTunnel(configPath string, tunFd int, mtu int, packetFlow PacketFlow, c
 		return fmt.Sprintf("Failed to create TUN device: %v", err)
 	}
 
-	// Endpoint - use custom endpoint if set, otherwise use config default
+	// Endpoint - use custom endpoint if set, otherwise the protocol default.
 	var endpoint *net.UDPAddr
 	if customEndpoint != "" {
-		// Parse custom endpoint (supports host:port format)
 		host, port, err := parseEndpoint(customEndpoint)
 		if err != nil {
 			return fmt.Sprintf("Invalid custom endpoint '%s': %v", customEndpoint, err)
@@ -315,6 +306,20 @@ func StartTunnel(configPath string, tunFd int, mtu int, packetFlow PacketFlow, c
 			Port: port,
 		}
 		log.Printf("Using custom endpoint: %s:%d", host, port)
+	} else if proto == ProtoWireGuard {
+		def := config.AppConfig.WgEndpointV4
+		if def == "" {
+			def = "162.159.192.1:2408"
+		}
+		host, port, err := parseEndpoint(def)
+		if err != nil {
+			return fmt.Sprintf("Invalid WireGuard endpoint '%s': %v", def, err)
+		}
+		endpoint = &net.UDPAddr{
+			IP:   net.ParseIP(host),
+			Port: port,
+		}
+		log.Printf("Using WireGuard endpoint: %s:%d", host, port)
 	} else {
 		// Use default from config (IPv4)
 		endpoint = &net.UDPAddr{
@@ -322,6 +327,34 @@ func StartTunnel(configPath string, tunFd int, mtu int, packetFlow PacketFlow, c
 			Port: 443,
 		}
 		log.Printf("Using default endpoint: %s:443", config.AppConfig.EndpointV4)
+	}
+
+	// MASQUE-only preparation: TLS material. WireGuard needs none.
+	var tlsConfig *tls.Config
+	if proto == ProtoMasque {
+		privKey, err := config.AppConfig.GetEcPrivateKey()
+		if err != nil {
+			return fmt.Sprintf("Failed to get private key: %v", err)
+		}
+		peerPubKey, err := config.AppConfig.GetEcEndpointPublicKey()
+		if err != nil {
+			return fmt.Sprintf("Failed to get peer public key: %v", err)
+		}
+
+		cert, err := internal.GenerateCert(privKey, &privKey.PublicKey)
+		if err != nil {
+			return fmt.Sprintf("Failed to generate cert: %v", err)
+		}
+
+		sni := customSNI
+		if sni == "" {
+			sni = internal.ConnectSNI
+		}
+		log.Printf("Using SNI: %s", sni)
+		tlsConfig, err = api.PrepareTlsConfig(privKey, peerPubKey, cert, sni)
+		if err != nil {
+			return fmt.Sprintf("Failed to prepare TLS: %v", err)
+		}
 	}
 
 	// Create context for cancellation
@@ -334,11 +367,7 @@ func StartTunnel(configPath string, tunFd int, mtu int, packetFlow PacketFlow, c
 
 	// Start tunnel maintenance in background
 	go func() {
-		log.Println("Starting MASQUE tunnel...")
-
-		// statusCb receives real connection events from MaintainTunnel.
-		// This replaces the old fake 3-second timer that fired OnConnected
-		// regardless of whether the MASQUE handshake actually succeeded.
+		// statusCb receives real connection events from the tunnel.
 		statusCb := func(status, detail string) {
 			log.Printf("Tunnel status: %s (%s)", status, detail)
 			state.mu.Lock()
@@ -365,10 +394,16 @@ func StartTunnel(configPath string, tunFd int, mtu int, packetFlow PacketFlow, c
 			}
 		}
 
-		api.MaintainTunnel(ctx, tlsConfig, 30*time.Second, 1242, endpoint, tunDevice, mtu, time.Second, statusCb)
+		if proto == ProtoWireGuard {
+			log.Println("Starting WireGuard tunnel...")
+			api.MaintainWGTunnel(ctx, endpoint, config.AppConfig.WgPrivateKey, config.AppConfig.WgPeerKey, tunDevice, mtu, statusCb)
+		} else {
+			log.Println("Starting MASQUE tunnel...")
+			api.MaintainTunnel(ctx, tlsConfig, 30*time.Second, 1242, endpoint, tunDevice, mtu, time.Second, statusCb)
+		}
 
 		// Tunnel exited (context cancelled or unrecoverable error)
-		log.Println("MASQUE tunnel exited")
+		log.Println("Tunnel exited")
 		tunDevice.Close()
 
 		state.mu.Lock()
@@ -597,6 +632,173 @@ func GetDefaultEndpoint(configPath string) string {
 	return ""
 }
 
+// ============================================
+// WireGuard Device Management
+// ============================================
+
+// RegisterWg registers a second WARP device keyed for the WireGuard protocol
+// and stores its credentials in the existing config.json.
+//
+// Cloudflare keys a device to exactly one tunnel type, so the WireGuard
+// device is a separate registration from the MASQUE one: a curve25519
+// keypair is generated on-device, the public half goes to /reg, and the
+// private half is kept for the tunnel (unlike the MASQUE flow, where the
+// throwaway WireGuard key of the initial registration is discarded).
+//
+// Safe to call repeatedly - it is a no-op once the config carries a
+// WireGuard device.
+//
+// Returns:
+//   - error string on failure, empty string on success
+func RegisterWg(configPath string) string {
+	if err := config.LoadConfig(configPath); err != nil {
+		return fmt.Sprintf("Register the MASQUE device first (failed to load config): %v", err)
+	}
+	if config.AppConfig.HasWgDevice() {
+		return ""
+	}
+
+	privB64, pubB64, err := internal.GenerateWgKeypair()
+	if err != nil {
+		return fmt.Sprintf("Failed to generate WireGuard keypair: %v", err)
+	}
+
+	acct, err := api.RegisterWithWgKey(internal.DefaultModel, internal.DefaultLocale, pubB64)
+	if err != nil {
+		return fmt.Sprintf("WireGuard registration failed: %v", err)
+	}
+	if len(acct.Config.Peers) == 0 || acct.Config.Peers[0].PublicKey == "" {
+		return "WireGuard registration response missing peer public key"
+	}
+
+	cfg := &config.AppConfig
+	cfg.WgPrivateKey = privB64
+	cfg.WgPeerKey = acct.Config.Peers[0].PublicKey
+	cfg.WgIPv4 = acct.Config.Interface.Addresses.V4
+	cfg.WgIPv6 = acct.Config.Interface.Addresses.V6
+	cfg.WgDeviceID = acct.ID
+	cfg.WgAccessToken = acct.Token
+	cfg.WgEndpointV4 = normalizeWgEndpoint(acct.Config.Peers[0].Endpoint.V4, false)
+	cfg.WgEndpointV6 = normalizeWgEndpoint(acct.Config.Peers[0].Endpoint.V6, true)
+
+	if err := cfg.SaveConfig(configPath); err != nil {
+		return fmt.Sprintf("Failed to save config: %v", err)
+	}
+	log.Printf("WireGuard device registered: id=%s v4=%s endpoint=%s", acct.ID, cfg.WgIPv4, cfg.WgEndpointV4)
+	return ""
+}
+
+// HasWgDevice reports whether the config carries a WireGuard device.
+func HasWgDevice(configPath string) bool {
+	return config.LoadConfig(configPath) == nil && config.AppConfig.HasWgDevice()
+}
+
+// normalizeWgEndpoint turns the /reg response's endpoint field into a
+// host:port string. The API returns shapes like "162.159.192.1/32",
+// "162.159.192.1:2408" or "[2606:4700:d0::...]:2408" depending on device
+// type and version; anything without a port gets the WireGuard default 2408.
+func normalizeWgEndpoint(raw string, v6 bool) string {
+	def := "162.159.192.1:2408"
+	if v6 {
+		def = "[2606:4700:d0::a29f:c001]:2408"
+	}
+	raw = strings.TrimSpace(raw)
+	if i := strings.Index(raw, "/"); i >= 0 {
+		raw = raw[:i]
+	}
+	raw = strings.Trim(raw, "[]")
+	if raw == "" {
+		return def
+	}
+	// Count colons outside of a trailing port: a bare IPv6 has several, an
+	// IPv4 without a port has none.
+	if strings.Contains(raw, ":") {
+		return raw
+	}
+	return raw + ":2408"
+}
+
+// GetWgDefaultEndpoint returns the WireGuard device's default endpoint
+// (host:port), or the engage anycast fallback when none is stored.
+func GetWgDefaultEndpoint(configPath string) string {
+	if err := config.LoadConfig(configPath); err == nil && config.AppConfig.WgEndpointV4 != "" {
+		return config.AppConfig.WgEndpointV4
+	}
+	return "162.159.192.1:2408"
+}
+
+// GetWgAssignedIPv4 returns the WireGuard device's assigned IPv4 address.
+func GetWgAssignedIPv4(configPath string) string {
+	if err := config.LoadConfig(configPath); err == nil {
+		return config.AppConfig.WgIPv4
+	}
+	return ""
+}
+
+// GetWgAssignedIPv6 returns the WireGuard device's assigned IPv6 address.
+func GetWgAssignedIPv6(configPath string) string {
+	if err := config.LoadConfig(configPath); err == nil {
+		return config.AppConfig.WgIPv6
+	}
+	return ""
+}
+
+// ============================================
+// WARP Endpoint Scanner (WireGuard)
+// ============================================
+
+// ScanCallback receives progress from ScanWarpEndpoints. Methods are called
+// from Go goroutines; implementations must marshal to the UI thread themselves.
+type ScanCallback interface {
+	// OnPhase reports progress within the current phase.
+	OnPhase(done int32, total int32, message string)
+	// OnResult reports one endpoint attempt. ok=false means every port
+	// tried for that address failed.
+	OnResult(endpoint string, ok bool, rttMs float64, lossPct float64, torn bool, colo string, coloCity string, coloISO string, country string)
+	// OnDone reports successful completion. summary is a JSON object:
+	// {"best":"ip:port","working":N,"total":M,"colo":..,"city":..,"iso":..,"country":..,"rtt_ms":..}
+	OnDone(summary string)
+	// OnError reports a fatal failure.
+	OnError(message string)
+}
+
+// ScanWarpEndpoints scans the WARP WireGuard endpoint pools and reports
+// working endpoints (with exit colo and in-tunnel latency/loss) through cb.
+//
+// Requires a WireGuard device (RegisterWg). Blocks until the scan finishes -
+// call from a background thread. StopScan cancels a running scan.
+//
+// full=false samples 3 addresses per /24 (~40 endpoints, a few minutes);
+// full=true scans every address per /24 (~3.5k endpoints, slow).
+//
+// Returns:
+//   - error string for setup problems (config, missing device), empty
+//     string once the scan actually starts.
+func ScanWarpEndpoints(configPath string, full bool, cb ScanCallback) string {
+	if err := config.LoadConfig(configPath); err != nil {
+		return fmt.Sprintf("Failed to load config: %v", err)
+	}
+	if !config.AppConfig.HasWgDevice() {
+		return "No WireGuard device registered - register one first"
+	}
+	opts := &scanner.Options{PerSubnet: 3}
+	if full {
+		opts.PerSubnet = 0
+	}
+	// scanner.Callback and ScanCallback share the same method set, so the
+	// gomobile-side interface satisfies the scanner one directly.
+	if err := scanner.Scan(config.AppConfig.WgPrivateKey, config.AppConfig.WgPeerKey,
+		config.AppConfig.WgIPv4, config.AppConfig.WgIPv6, opts, cb); err != nil {
+		log.Printf("Scan ended: %v", err)
+	}
+	return ""
+}
+
+// StopScan cancels a running endpoint scan, if any.
+func StopScan() {
+	scanner.StopScan()
+}
+
 // ResetConnectionOptions resets all connection options to defaults
 func ResetConnectionOptions() {
 	customSNI = "www.visa.cn"
@@ -611,7 +813,7 @@ func ResetConnectionOptions() {
 // StartTunnelWithFd starts the tunnel by reading/writing directly to the TUN fd.
 // This is simpler but requires the TUN fd to be readable/writable from Go.
 func StartTunnelWithFd(configPath string, tunFd int, callback VpnStateCallback) string {
-	return StartTunnel(configPath, tunFd, 1280, nil, callback)
+	return StartTunnel(configPath, tunFd, 1280, ProtoMasque, nil, callback)
 }
 
 // fdReadWriter wraps a file descriptor for io.ReadWriter

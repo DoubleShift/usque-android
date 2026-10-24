@@ -40,6 +40,12 @@
             android:exported="false"
             android:label="Per-App Proxy" />
 
+        <!-- WARP endpoint scanner -->
+        <activity
+            android:name=".ScanActivity"
+            android:exported="false"
+            android:label="Endpoint Scanner" />
+
         <!-- VPN Service -->
         <service
             android:name=".UsqueVpnService"
