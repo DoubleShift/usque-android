@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#f5f3ef">
+    android:background="@color/bg">
 
     <!-- Top bar: title + settings button -->
     <RelativeLayout
@@ -19,22 +19,22 @@
             android:text="RE.usque"
             android:textSize="22sp"
             android:fontFamily="sans-serif-light"
-            android:textColor="#668863"
+            android:textColor="@color/text_primary"
             android:letterSpacing="0.08" />
 
         <Button
             android:id="@+id/settings_button"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="44dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:text="Settings"
-            android:textColor="#3d3d3d"
+            android:textColor="@color/text_primary"
             android:textSize="12sp"
             android:fontFamily="sans-serif-medium"
             android:background="@drawable/button_circle_background"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp" />
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp" />
 
     </RelativeLayout>
 
@@ -47,13 +47,13 @@
         android:gravity="center_horizontal"
         android:paddingStart="32dp"
         android:paddingEnd="32dp"
-        android:paddingTop="48dp">
+        android:paddingTop="40dp">
 
         <!-- Circular connect button with outer ring -->
         <FrameLayout
             android:layout_width="200dp"
             android:layout_height="200dp"
-            android:layout_marginBottom="48dp">
+            android:layout_marginBottom="40dp">
 
             <View
                 android:layout_width="match_parent"
@@ -68,7 +68,7 @@
                 android:text="Connect"
                 android:textSize="20sp"
                 android:fontFamily="sans-serif-medium"
-                android:textColor="#f5f3ef"
+                android:textColor="@color/on_accent"
                 android:background="@drawable/button_background" />
 
         </FrameLayout>
@@ -88,7 +88,7 @@
                 android:text="[Auto] Protocol: —"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-medium"
-                android:textColor="#3d3d3d"
+                android:textColor="@color/text_primary"
                 android:letterSpacing="0.02" />
 
             <TextView
@@ -99,7 +99,7 @@
                 android:text="Exit: —"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif"
-                android:textColor="#5a6b52"
+                android:textColor="@color/text_secondary"
                 android:letterSpacing="0.02"
                 android:layout_marginTop="4dp" />
 
@@ -111,8 +111,9 @@
                 android:text="IPv4: Not registered"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif"
-                android:textColor="#3d3d3d"
-                android:letterSpacing="0.02" />
+                android:textColor="@color/text_secondary"
+                android:letterSpacing="0.02"
+                android:layout_marginTop="4dp" />
 
             <TextView
                 android:id="@+id/ipv6_text"
@@ -122,7 +123,7 @@
                 android:text="IPv6: Not registered"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif"
-                android:textColor="#3d3d3d"
+                android:textColor="@color/text_secondary"
                 android:letterSpacing="0.02"
                 android:layout_marginTop="4dp" />
 
@@ -134,7 +135,7 @@
                 android:text="Endpoint: —"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif"
-                android:textColor="#3d3d3d"
+                android:textColor="@color/text_secondary"
                 android:letterSpacing="0.02"
                 android:layout_marginTop="4dp" />
 
@@ -168,9 +169,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Endpoint Scanner"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:fontFamily="sans-serif-medium"
-                android:textColor="#5a6b52"
+                android:textColor="@color/text_secondary"
                 android:textAllCaps="true"
                 android:letterSpacing="0.12" />
 
@@ -181,7 +182,7 @@
                 android:text="Scan for working endpoints &amp; exit nodes"
                 android:textSize="15sp"
                 android:fontFamily="sans-serif"
-                android:textColor="#3d3d3d"
+                android:textColor="@color/text_primary"
                 android:layout_marginTop="3dp" />
 
         </LinearLayout>
@@ -192,7 +193,7 @@
             android:text="›"
             android:textSize="28sp"
             android:fontFamily="sans-serif-light"
-            android:textColor="#b38a59" />
+            android:textColor="@color/text_secondary" />
 
     </LinearLayout>
 
@@ -222,9 +223,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Per-App Proxy"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:fontFamily="sans-serif-medium"
-                android:textColor="#5a6b52"
+                android:textColor="@color/text_secondary"
                 android:textAllCaps="true"
                 android:letterSpacing="0.12" />
 
@@ -235,7 +236,7 @@
                 android:text="Off — all apps use VPN"
                 android:textSize="15sp"
                 android:fontFamily="sans-serif"
-                android:textColor="#3d3d3d"
+                android:textColor="@color/text_primary"
                 android:layout_marginTop="3dp" />
 
         </LinearLayout>
@@ -246,7 +247,7 @@
             android:text="›"
             android:textSize="28sp"
             android:fontFamily="sans-serif-light"
-            android:textColor="#b38a59" />
+            android:textColor="@color/text_secondary" />
 
     </LinearLayout>
 

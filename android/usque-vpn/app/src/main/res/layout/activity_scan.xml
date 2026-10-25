@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#f5f3ef">
+    android:background="@color/bg">
 
     <!-- Top bar: title + back -->
     <RelativeLayout
@@ -20,22 +20,22 @@
             android:text="Endpoint Scanner"
             android:textSize="22sp"
             android:fontFamily="sans-serif-light"
-            android:textColor="#668863"
+            android:textColor="@color/text_primary"
             android:letterSpacing="0.08" />
 
         <Button
             android:id="@+id/back_button"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="44dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:text="Back"
-            android:textColor="#3d3d3d"
+            android:textColor="@color/text_primary"
             android:textSize="12sp"
             android:fontFamily="sans-serif-medium"
             android:background="@drawable/button_circle_background"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp" />
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp" />
 
     </RelativeLayout>
 
@@ -57,7 +57,7 @@
             android:text="Finds which Cloudflare WARP endpoints work on this network, their exit node and latency. Uses the WireGuard device."
             android:textSize="14sp"
             android:fontFamily="sans-serif"
-            android:textColor="#3d3d3d" />
+            android:textColor="@color/text_primary" />
 
         <ProgressBar
             android:id="@+id/scan_progress"
@@ -73,7 +73,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+            android:layout_marginTop="8dp">
 
             <RadioButton
                 android:id="@+id/mode_quick"
@@ -81,7 +81,7 @@
                 android:layout_height="wrap_content"
                 android:checked="true"
                 android:text="Quick probe (auto-connect)"
-                android:textColor="#3d3d3d"
+                android:textColor="@color/text_primary"
                 android:textSize="13sp" />
 
             <RadioButton
@@ -90,7 +90,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="20dp"
                 android:text="Deep scan"
-                android:textColor="#3d3d3d"
+                android:textColor="@color/text_primary"
                 android:textSize="13sp" />
 
         </RadioGroup>
@@ -107,7 +107,7 @@
                 android:layout_height="44dp"
                 android:layout_weight="1"
                 android:text="Start Scan"
-                android:textColor="#f5f3ef"
+                android:textColor="@color/on_accent"
                 android:textSize="14sp"
                 android:background="@drawable/button_rect_primary" />
 
@@ -118,7 +118,7 @@
                 android:layout_weight="1"
                 android:layout_marginStart="12dp"
                 android:text="Stop"
-                android:textColor="#3d3d3d"
+                android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:background="@drawable/button_rect_secondary"
                 android:enabled="false" />
@@ -132,7 +132,7 @@
             android:layout_marginTop="6dp"
             android:text="Full scan (all 256 addresses per subnet — slow)"
             android:textSize="13sp"
-            android:textColor="#3d3d3d" />
+            android:textColor="@color/text_primary" />
 
     </LinearLayout>
 
@@ -146,7 +146,7 @@
         android:layout_marginEnd="24dp"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
-        android:divider="#e0ddd6"
+        android:divider="@color/border"
         android:dividerHeight="1dp"
         android:cacheColorHint="#00000000" />
 

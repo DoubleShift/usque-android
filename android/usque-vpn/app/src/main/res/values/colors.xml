@@ -1,4 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#6c5ce7</color>
+    <!--
+      Design tokens — "Shield dark + connected green"
+      Derived with the ui-ux-pro-max design system (Minimalism & Swiss Style,
+      dark mode, security/privacy product profile). Single source of truth
+      for every UI color; no hardcoded hex in layouts.
+    -->
+    <!-- Surfaces -->
+    <color name="bg">#0F172A</color>
+    <color name="surface">#192134</color>
+    <color name="surface_muted">#10192E</color>
+    <color name="surface_disabled">#1E293B</color>
+
+    <!-- Content -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_hint">#64748B</color>
+
+    <!-- Brand / actions -->
+    <color name="accent">#22C55E</color>
+    <color name="on_accent">#0F172A</color>
+    <color name="accent_pressed">#16A34A</color>
+    <color name="primary_deep">#1E3A5F</color>
+
+    <!-- Status -->
+    <color name="status_connected">#22C55E</color>
+    <color name="status_connecting">#EAB308</color>
+    <color name="status_error">#DC2626</color>
+
+    <!-- Semantic -->
+    <color name="border">#14FFFFFF</color>
+    <color name="destructive">#DC2626</color>
+    <color name="destructive_pressed">#B91C1C</color>
+    <color name="on_destructive">#FFFFFF</color>
+
+    <!-- Launcher -->
+    <color name="ic_launcher_background">#0F172A</color>
 </resources>

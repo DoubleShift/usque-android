@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="#f5f3ef">
+    android:background="@color/surface">
 
     <!-- Connection strategy -->
     <CheckBox
@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:checked="true"
         android:text="Auto: probe and pick the best connection per network"
-        android:textColor="#3d3d3d"
+        android:textColor="@color/text_primary"
         android:textSize="13sp"
         android:layout_marginBottom="2dp" />
 
@@ -22,7 +22,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Speed first (WireGuard outranks MASQUE when faster)"
-        android:textColor="#3d3d3d"
+        android:textColor="@color/text_primary"
         android:textSize="13sp"
         android:layout_marginBottom="12dp" />
 
@@ -30,8 +30,8 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Protocol"
-        android:textColor="#668863"
+        android:text="Protocol (manual mode)"
+        android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:fontFamily="sans-serif-medium"
         android:layout_marginBottom="4dp" />
@@ -48,7 +48,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="MASQUE"
-            android:textColor="#3d3d3d"
+            android:textColor="@color/text_primary"
             android:textSize="14sp" />
 
         <RadioButton
@@ -57,7 +57,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
             android:text="WireGuard"
-            android:textColor="#3d3d3d"
+            android:textColor="@color/text_primary"
             android:textSize="14sp" />
 
     </RadioGroup>
@@ -68,7 +68,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="SNI (Server Name Indication)"
-        android:textColor="#668863"
+        android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:fontFamily="sans-serif-medium"
         android:layout_marginBottom="4dp" />
@@ -78,8 +78,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="www.visa.cn"
-        android:textColor="#3d3d3d"
-        android:textColorHint="#8a8a8a"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_hint"
         android:inputType="textUri"
         android:layout_marginBottom="16dp" />
 
@@ -89,7 +89,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Endpoint (host:port)"
-        android:textColor="#668863"
+        android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:fontFamily="sans-serif-medium"
         android:layout_marginBottom="4dp" />
@@ -99,8 +99,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="162.159.198.1:443"
-        android:textColor="#3d3d3d"
-        android:textColorHint="#8a8a8a"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_hint"
         android:inputType="textUri"
         android:layout_marginBottom="8dp" />
 
@@ -109,8 +109,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Supported formats:\n• IPv4: 162.159.198.1:443\n• IPv6: [2606:4700:103::1]:443\n• Without port defaults to 443"
-        android:textColor="#5a6b52"
-        android:textSize="11sp"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
         android:lineSpacingExtra="2dp" />
 
 </LinearLayout>

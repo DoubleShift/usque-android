@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:textSize="15sp"
         android:fontFamily="sans-serif-medium"
-        android:textColor="#3d3d3d" />
+        android:textColor="@color/text_primary" />
 
     <TextView
         android:id="@+id/scan_row_detail"
@@ -22,7 +22,7 @@
         android:layout_height="wrap_content"
         android:textSize="12sp"
         android:fontFamily="sans-serif"
-        android:textColor="#5a6b52"
+        android:textColor="@color/text_secondary"
         android:layout_marginTop="2dp" />
 
 </LinearLayout>

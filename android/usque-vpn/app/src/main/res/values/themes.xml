@@ -11,11 +11,20 @@
       is the platform android.app.AlertDialog, not Material).
       Dropping Material saves ~2 MB of code memory and reduces inflation
       overhead at Activity start.
+
+      The dark "Shield" palette lives in colors.xml as design tokens; the
+      platform dark theme gives dark dialogs and properly tinted controls
+      without any Material dependency.
     -->
-    <style name="Theme.UsqueVpn" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
-        <item name="android:statusBarColor">#f5f3ef</item>
-        <item name="android:navigationBarColor">#f5f3ef</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowBackground">#f5f3ef</item>
+    <style name="Theme.UsqueVpn" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:colorControlActivated">@color/accent</item>
+        <item name="android:colorControlNormal">@color/text_secondary</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
     </style>
 </resources>

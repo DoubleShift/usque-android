@@ -316,7 +316,7 @@ class MainActivity : Activity() {
                 if (chosen != null) {
                     val p = chosen.optString("proto", PROTO_MASQUE)
                     dashboardProto = if (p == PROTO_WG) "WireGuard" else "MASQUE"
-                    val place = listOf(
+                    val place = listOfNotNull(
                         chosen.optString("colo").ifEmpty { null },
                         chosen.optString("city").ifEmpty { null }
                     ).joinToString(" ")
