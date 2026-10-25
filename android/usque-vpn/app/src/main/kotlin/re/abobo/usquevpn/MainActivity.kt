@@ -338,7 +338,7 @@ class MainActivity : Activity() {
         val modeLabel = if (autoMode) "Auto" else "Manual"
         protoText.text = when {
             dashboardProto.isNotEmpty() -> "[$modeLabel] Protocol: $dashboardProto"
-            autoMode -> "[$modeLabel] Connect to auto-probe this network"
+            autoMode -> "[Auto] Tap Connect to probe"
             else -> "[$modeLabel] Protocol: ${if (proto == PROTO_WG) "WireGuard" else "MASQUE"}"
         }
         exitText.text = when {

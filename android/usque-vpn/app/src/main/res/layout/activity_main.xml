@@ -18,8 +18,8 @@
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingTop="16dp"
-            android:paddingBottom="8dp">
+            android:paddingTop="10dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -50,11 +50,11 @@
 
         <!-- Circular connect button with outer ring -->
         <FrameLayout
-            android:layout_width="160dp"
-            android:layout_height="160dp"
+            android:layout_width="128dp"
+            android:layout_height="128dp"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="20dp">
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="14dp">
 
             <View
                 android:layout_width="match_parent"
@@ -63,11 +63,11 @@
 
             <Button
                 android:id="@+id/connect_button"
-                android:layout_width="146dp"
-                android:layout_height="146dp"
+                android:layout_width="116dp"
+                android:layout_height="116dp"
                 android:layout_gravity="center"
                 android:text="Connect"
-                android:textSize="18sp"
+                android:textSize="16sp"
                 android:fontFamily="sans-serif-medium"
                 android:textColor="@color/on_accent"
                 android:background="@drawable/button_background" />
@@ -80,55 +80,65 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:background="@drawable/card_background"
-            android:padding="16dp">
+            android:padding="14dp">
 
             <TextView
                 android:id="@+id/proto_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="[Auto] Protocol: —"
-                android:textSize="15sp"
+                android:textSize="14sp"
                 android:fontFamily="sans-serif-medium"
-                android:textColor="@color/text_primary" />
+                android:textColor="@color/text_primary"
+                android:singleLine="true"
+                android:ellipsize="end" />
 
             <TextView
                 android:id="@+id/exit_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Exit: —"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:fontFamily="sans-serif"
                 android:textColor="@color/text_secondary"
-                android:layout_marginTop="6dp" />
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:layout_marginTop="5dp" />
 
             <TextView
                 android:id="@+id/endpoint_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Endpoint: —"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:fontFamily="sans-serif"
                 android:textColor="@color/text_secondary"
-                android:layout_marginTop="6dp" />
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:layout_marginTop="5dp" />
 
             <TextView
                 android:id="@+id/ipv4_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="IPv4: Not registered"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:fontFamily="sans-serif"
                 android:textColor="@color/text_secondary"
-                android:layout_marginTop="6dp" />
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:layout_marginTop="5dp" />
 
             <TextView
                 android:id="@+id/ipv6_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="IPv6: Not registered"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:fontFamily="sans-serif"
                 android:textColor="@color/text_secondary"
+                android:singleLine="true"
+                android:ellipsize="end"
                 android:layout_marginTop="2dp" />
 
         </LinearLayout>
@@ -141,8 +151,8 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:background="@drawable/card_background"
-            android:padding="16dp"
-            android:layout_marginTop="12dp"
+            android:padding="14dp"
+            android:layout_marginTop="10dp"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?android:attr/selectableItemBackground">
@@ -193,8 +203,8 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:background="@drawable/card_background"
-            android:padding="16dp"
-            android:layout_marginTop="12dp"
+            android:padding="14dp"
+            android:layout_marginTop="10dp"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?android:attr/selectableItemBackground">
