@@ -14,17 +14,22 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ListView
 import android.widget.ProgressBar
+import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONObject
 import usqueandroid.ScanCallback
+import usqueandroid.StrategyCallback
 import usqueandroid.Usqueandroid
 
 /**
- * ScanActivity runs the WARP endpoint scanner (WireGuard protocol) and shows
- * working endpoints with their exit node and in-tunnel latency. Picking a
- * result saves it as the WireGuard endpoint and switches the protocol to
- * WireGuard.
+ * ScanActivity runs the WARP endpoint tooling in two modes:
+ *  - Quick probe: the connection strategy suite (MASQUE ports/SNI + sampled
+ *    WireGuard). The winner is auto-applied for the current network.
+ *  - Deep scan: the full WireGuard endpoint pool scan (slow).
+ *
+ * Results show endpoint, exit node and in-tunnel latency; tapping a result
+ * applies it as the endpoint for its protocol.
  */
 class ScanActivity : Activity() {
 
@@ -34,6 +39,8 @@ class ScanActivity : Activity() {
     private lateinit var startButton: Button
     private lateinit var stopButton: Button
     private lateinit var fullCheckbox: CheckBox
+    private lateinit var quickRadio: RadioButton
+    private lateinit var deepRadio: RadioButton
     private lateinit var resultsList: ListView
 
     private val configPath by lazy { "${filesDir.absolutePath}/config.json" }
@@ -42,17 +49,17 @@ class ScanActivity : Activity() {
     private val rows = ArrayList<ScanRow>()
     private lateinit var adapter: ScanRowAdapter
 
-    /** Rows whose endpoint matches the summary's best get the star. */
+    /** Rows whose endpoint matches the current best get the star. */
     @Volatile
     private var bestEndpoint: String = ""
 
     @Volatile
-    private var scanning = false
+    private var running = false
 
     /** Throttled list refresh while results stream in. */
     private val refreshRunnable = object : Runnable {
         override fun run() {
-            if (scanning) {
+            if (running) {
                 adapter.notifyDataSetChanged()
                 mainHandler.postDelayed(this, 800)
             }
@@ -70,6 +77,8 @@ class ScanActivity : Activity() {
         startButton = findViewById(R.id.scan_start_button)
         stopButton = findViewById(R.id.scan_stop_button)
         fullCheckbox = findViewById(R.id.scan_full_checkbox)
+        quickRadio = findViewById(R.id.mode_quick)
+        deepRadio = findViewById(R.id.mode_deep)
         resultsList = findViewById(R.id.scan_results_list)
 
         adapter = ScanRowAdapter()
@@ -77,9 +86,12 @@ class ScanActivity : Activity() {
 
         findViewById<Button>(R.id.back_button).setOnClickListener { finish() }
 
-        startButton.setOnClickListener { startScan() }
+        startButton.setOnClickListener { startRun() }
         stopButton.setOnClickListener {
-            Thread { Usqueandroid.stopScan() }.start()
+            Thread {
+                Usqueandroid.stopScan()
+                Usqueandroid.stopProbe()
+            }.start()
             setStatus("Stopping…")
         }
 
@@ -118,15 +130,15 @@ class ScanActivity : Activity() {
         }.start()
     }
 
-    private fun startScan() {
-        if (scanning) return
+    private fun startRun() {
+        if (running) return
         if (!Usqueandroid.hasWgDevice(configPath)) {
             Toast.makeText(this, "WireGuard device not ready yet", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // The scan handshakes from the same identity the VPN tunnel uses;
-        // stop the tunnel first so the two don't fight over the network.
+        // Probing/scan handshakes come from the same identities the VPN tunnel
+        // uses; stop the tunnel first so the two don't fight over the network.
         if (UsqueVpnService.isRunning) {
             UsqueVpnService.stop()
         }
@@ -135,31 +147,151 @@ class ScanActivity : Activity() {
         bestEndpoint = ""
         adapter.notifyDataSetChanged()
         progressBar.progress = 0
-        scanning = true
+        running = true
         startButton.isEnabled = false
         stopButton.isEnabled = true
         fullCheckbox.isEnabled = false
+        quickRadio.isEnabled = false
+        deepRadio.isEnabled = false
         setStatus("Scanning…")
         mainHandler.postDelayed(refreshRunnable, 800)
 
-        val full = fullCheckbox.isChecked
+        val quick = quickRadio.isChecked
         Thread {
-            val err = Usqueandroid.scanWarpEndpoints(configPath, full, scanCallback)
-            runOnUiThread {
-                scanning = false
-                startButton.isEnabled = true
-                stopButton.isEnabled = false
-                fullCheckbox.isEnabled = true
-                mainHandler.removeCallbacks(refreshRunnable)
-                adapter.notifyDataSetChanged()
-                if (err.isNotEmpty()) {
-                    statusText.text = "Scan error: $err"
-                }
-                // Success/failure details arrive through the callback.
+            if (quick) {
+                runQuickProbe()
+            } else {
+                runDeepScan()
             }
         }.start()
     }
 
+    private fun runQuickProbe() {
+        val networkId = UsqueVpnService.currentNetworkId(this)
+        val sni = prefs.getString(MainActivity.KEY_SNI, "www.visa.cn") ?: "www.visa.cn"
+        val speedFirst = prefs.getBoolean(MainActivity.KEY_SPEED_FIRST, false)
+        val err = Usqueandroid.probeNetwork(configPath, networkId, sni, speedFirst, strategyCallback)
+        runOnUiThread {
+            finishRun()
+            if (err.isNotEmpty()) {
+                statusText.text = "Probe error: $err"
+            }
+        }
+    }
+
+    private fun runDeepScan() {
+        val full = fullCheckbox.isChecked
+        val err = Usqueandroid.scanWarpEndpoints(configPath, full, scanCallback)
+        runOnUiThread {
+            finishRun()
+            if (err.isNotEmpty()) {
+                statusText.text = "Scan error: $err"
+            }
+        }
+    }
+
+    private fun finishRun() {
+        running = false
+        startButton.isEnabled = true
+        stopButton.isEnabled = false
+        fullCheckbox.isEnabled = true
+        quickRadio.isEnabled = true
+        deepRadio.isEnabled = true
+        mainHandler.removeCallbacks(refreshRunnable)
+        adapter.notifyDataSetChanged()
+    }
+
+    private fun beginResultRow(endpoint: String, ok: Boolean, rttMs: Double, lossPct: Double,
+                               torn: Boolean, colo: String, city: String, iso: String, country: String, sni: String, proto: String) {
+        if (endpoint.isEmpty()) return
+        synchronized(rows) {
+            rows.add(ScanRow(endpoint, ok, rttMs, lossPct, torn, colo, city, iso, country, sni, proto))
+            rows.sort()
+        }
+    }
+
+    /** Strategy suite callback (quick probe). */
+    private val strategyCallback = object : StrategyCallback {
+        override fun onStage(stage: String?, done: Int, total: Int, message: String?) {
+            runOnUiThread {
+                if (total > 0) {
+                    progressBar.max = total
+                    progressBar.progress = done
+                }
+                if (!message.isNullOrEmpty()) {
+                    statusText.text = message
+                } else if (!stage.isNullOrEmpty()) {
+                    statusText.text = "$stage — $done/$total"
+                }
+            }
+        }
+
+        override fun onCandidate(candidateJSON: String?) {
+            try {
+                val c = JSONObject(candidateJSON ?: "{}")
+                beginResultRow(
+                    c.optString("endpoint"), true,
+                    c.optDouble("rtt_ms", 0.0), c.optDouble("loss_pct", 0.0),
+                    c.optBoolean("torn", false), c.optString("colo"),
+                    c.optString("city"), c.optString("iso"), c.optString("country"),
+                    c.optString("sni"), c.optString("proto", MainActivity.PROTO_MASQUE)
+                )
+            } catch (e: Exception) {
+                // ignore malformed candidate rows
+            }
+        }
+
+        override fun onDone(decisionJSON: String?) {
+            runOnUiThread {
+                finishRun()
+                try {
+                    val obj = JSONObject(decisionJSON ?: "{}")
+                    val chosen = obj.optJSONObject("chosen")
+                    if (chosen == null) {
+                        statusText.text = "No working connection found on this network."
+                        return@runOnUiThread
+                    }
+                    val ep = chosen.optString("endpoint")
+                    bestEndpoint = ep
+                    val proto = chosen.optString("proto", MainActivity.PROTO_MASQUE)
+                    val colo = listOfNotNull(
+                        chosen.optString("colo").ifEmpty { null },
+                        chosen.optString("city").ifEmpty { null }
+                    ).joinToString(" ")
+                    val rtt = chosen.optDouble("rtt_ms", 0.0)
+
+                    // Auto-apply: this is the strategy engine's job in quick mode.
+                    prefs.edit()
+                        .putString(MainActivity.KEY_PROTOCOL, proto)
+                        .putString(
+                            if (proto == MainActivity.PROTO_WG) MainActivity.KEY_ENDPOINT_WG else MainActivity.KEY_ENDPOINT,
+                            ep
+                        )
+                        .putString(UsqueVpnService.KEY_LAST_DECISION, decisionJSON)
+                        .apply()
+                    Usqueandroid.setEndpoint(ep)
+
+                    val protoLabel = if (proto == MainActivity.PROTO_WG) "WireGuard" else "MASQUE"
+                    statusText.text = "Best: $ep" +
+                            (if (colo.isNotEmpty()) " ($colo)" else "") +
+                            (if (rtt > 0) " ${rtt.toInt()} ms" else "") +
+                            " — $protoLabel applied. ${rows.size} candidates verified."
+                    adapter.notifyDataSetChanged()
+                } catch (e: Exception) {
+                    statusText.text = "Done. (summary parse failed: ${e.message})"
+                }
+            }
+        }
+
+        override fun onError(message: String?) {
+            runOnUiThread {
+                finishRun()
+                statusText.text = "Probe failed: ${message ?: "unknown error"}"
+            }
+        }
+    }
+
+    /** Deep scan callback (full WireGuard pool scan). */
     private val scanCallback = object : ScanCallback {
         override fun onPhase(done: Int, total: Int, message: String?) {
             runOnUiThread {
@@ -177,26 +309,16 @@ class ScanActivity : Activity() {
             endpoint: String?, ok: Boolean, rttMs: Double, lossPct: Double,
             torn: Boolean, colo: String?, coloCity: String?, coloISO: String?, country: String?
         ) {
-            if (endpoint.isNullOrEmpty()) return
-            synchronized(rows) {
-                rows.add(
-                    ScanRow(
-                        endpoint, ok, rttMs, lossPct, torn,
-                        colo ?: "", coloCity ?: "", coloISO ?: "", country ?: ""
-                    )
-                )
-                rows.sort()
-            }
+            beginResultRow(
+                endpoint ?: return, ok, rttMs, lossPct, torn,
+                colo ?: "", coloCity ?: "", coloISO ?: "", country ?: "", "",
+                MainActivity.PROTO_WG
+            )
         }
 
         override fun onDone(summary: String?) {
             runOnUiThread {
-                scanning = false
-                startButton.isEnabled = true
-                stopButton.isEnabled = false
-                fullCheckbox.isEnabled = true
-                mainHandler.removeCallbacks(refreshRunnable)
-                adapter.notifyDataSetChanged()
+                finishRun()
                 try {
                     val obj = JSONObject(summary ?: "{}")
                     bestEndpoint = obj.optString("best", "")
@@ -224,11 +346,7 @@ class ScanActivity : Activity() {
 
         override fun onError(message: String?) {
             runOnUiThread {
-                scanning = false
-                startButton.isEnabled = true
-                stopButton.isEnabled = false
-                fullCheckbox.isEnabled = true
-                mainHandler.removeCallbacks(refreshRunnable)
+                finishRun()
                 statusText.text = "Scan failed: ${message ?: "unknown error"}"
             }
         }
@@ -240,15 +358,24 @@ class ScanActivity : Activity() {
             .setMessage(
                 "${row.endpoint}\n\nExit: ${row.colo} ${row.city} (${row.iso})\n" +
                         "Latency: ${if (row.rttMs > 0) "${row.rttMs.toInt()} ms" else "unmeasured"}\n\n" +
-                        "This sets the WireGuard endpoint and switches the protocol to WireGuard."
+                        "This sets the ${if (row.proto == MainActivity.PROTO_WG) "WireGuard" else "MASQUE"} endpoint" +
+                        (if (row.sni.isNotEmpty()) " and SNI" else "") + "."
             )
             .setPositiveButton("Use") { _, _ ->
+                val proto = if (row.proto == MainActivity.PROTO_WG) MainActivity.PROTO_WG else MainActivity.PROTO_MASQUE
                 prefs.edit()
-                    .putString(MainActivity.KEY_PROTOCOL, MainActivity.PROTO_WG)
-                    .putString(MainActivity.KEY_ENDPOINT_WG, row.endpoint)
+                    .putString(MainActivity.KEY_PROTOCOL, proto)
+                    .putString(
+                        if (proto == MainActivity.PROTO_WG) MainActivity.KEY_ENDPOINT_WG else MainActivity.KEY_ENDPOINT,
+                        row.endpoint
+                    )
                     .apply()
                 Usqueandroid.setEndpoint(row.endpoint)
-                Toast.makeText(this, "Saved. Protocol: WireGuard.", Toast.LENGTH_LONG).show()
+                if (row.sni.isNotEmpty()) {
+                    prefs.edit().putString(MainActivity.KEY_SNI, row.sni).apply()
+                    Usqueandroid.setSNI(row.sni)
+                }
+                Toast.makeText(this, "Saved.", Toast.LENGTH_LONG).show()
                 finish()
             }
             .setNegativeButton("Cancel", null)
@@ -264,7 +391,9 @@ class ScanActivity : Activity() {
         val colo: String,
         val city: String,
         val iso: String,
-        val country: String
+        val country: String,
+        val sni: String = "",
+        val proto: String = MainActivity.PROTO_MASQUE
     ) : Comparable<ScanRow> {
         /** Working first, then not torn, then low loss, then low latency. */
         override fun compareTo(other: ScanRow): Int {
@@ -294,11 +423,13 @@ class ScanActivity : Activity() {
                 detailText.text = "no working port"
             } else {
                 val star = if (row.endpoint == bestEndpoint) "★ " else ""
-                endpointText.text = "$star${row.endpoint}"
+                val protoTag = if (row.proto == MainActivity.PROTO_WG) "WG" else "MQ"
+                endpointText.text = "$star[$protoTag] ${row.endpoint}"
                 val parts = ArrayList<String>()
                 if (row.rttMs > 0) parts.add("${row.rttMs.toInt()} ms")
                 if (row.lossPct > 0) parts.add("loss ${row.lossPct.toInt()}%")
                 if (row.torn) parts.add("torn")
+                if (row.sni.isNotEmpty()) parts.add("sni=${row.sni}")
                 val place = listOf(row.colo, row.city, row.iso).filter { it.isNotBlank() }.joinToString(" ")
                 if (place.isNotEmpty()) parts.add(place)
                 detailText.text = parts.joinToString(" · ").ifEmpty { "working" }

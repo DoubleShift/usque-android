@@ -68,6 +68,33 @@
             android:max="100"
             android:progress="0" />
 
+        <RadioGroup
+            android:id="@+id/mode_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <RadioButton
+                android:id="@+id/mode_quick"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="Quick probe (auto-connect)"
+                android:textColor="#3d3d3d"
+                android:textSize="13sp" />
+
+            <RadioButton
+                android:id="@+id/mode_deep"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:text="Deep scan"
+                android:textColor="#3d3d3d"
+                android:textSize="13sp" />
+
+        </RadioGroup>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

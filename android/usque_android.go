@@ -10,11 +10,13 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -25,6 +27,7 @@ import (
 	"github.com/Diniboy1123/usque/config"
 	"github.com/Diniboy1123/usque/internal"
 	"github.com/Diniboy1123/usque/internal/scanner"
+	"github.com/Diniboy1123/usque/internal/strategy"
 )
 
 // Protocol selectors for StartTunnel.
@@ -797,6 +800,80 @@ func ScanWarpEndpoints(configPath string, full bool, cb ScanCallback) string {
 // StopScan cancels a running endpoint scan, if any.
 func StopScan() {
 	scanner.StopScan()
+}
+
+// ============================================
+// Connection Strategy Engine (auto mode)
+// ============================================
+
+// StrategyCallback receives progress from ProbeNetwork. Methods are called
+// from Go goroutines; implementations must marshal to the UI thread
+// themselves.
+type StrategyCallback interface {
+	// OnStage reports progress of the current probe stage.
+	OnStage(stage string, done int32, total int32, message string)
+	// OnCandidate reports one verified candidate as JSON
+	// ({"proto":"wg","endpoint":"1.2.3.4:2408","rtt_ms":173,...}).
+	OnCandidate(candidateJSON string)
+	// OnDone reports completion. decisionJSON is a full Decision object:
+	// {"network_id":..,"chosen":{...},"candidates":[...],"verified_at":..}.
+	OnDone(decisionJSON string)
+	// OnError reports a fatal failure.
+	OnError(message string)
+}
+
+// ProbeNetwork runs the connection strategy probe suite for the given
+// network: MASQUE port/SNI sweep first, then a sampled WireGuard scan, then
+// the fallback-ladder decision. On success the decision is persisted as the
+// network profile (next to config.json) and delivered via OnDone.
+//
+// Requires the MASQUE device (config.json); the WireGuard stage is skipped
+// when no WG device is registered. Blocks - call from a background thread.
+// StopProbe cancels a running probe.
+//
+// Returns:
+//   - error string for setup problems (config missing, probe already
+//     running), empty string once the probe actually starts.
+func ProbeNetwork(configPath, networkID, customSNI string, preferSpeed bool, cb StrategyCallback) string {
+	if err := config.LoadConfig(configPath); err != nil {
+		return fmt.Sprintf("Failed to load config: %v", err)
+	}
+	saveDir := filepath.Dir(configPath)
+	cfg := config.AppConfig
+	if err := strategy.ProbeNetwork(&cfg, networkID, customSNI, preferSpeed, saveDir, cb); err != nil {
+		log.Printf("Probe ended: %v", err)
+	}
+	return ""
+}
+
+// StopProbe cancels a running strategy probe, if any.
+func StopProbe() {
+	strategy.StopProbe()
+}
+
+// LoadNetworkProfile returns the stored profile JSON for networkID, or an
+// empty string when none exists. Shape:
+// {"network_id":..,"chosen":{...},"candidates":[...],"verified_at":unix}
+func LoadNetworkProfile(configPath, networkID string) string {
+	dir := filepath.Dir(configPath)
+	profile, err := strategy.LoadNetworkProfile(dir, networkID)
+	if err != nil || profile == nil {
+		return ""
+	}
+	b, err := json.Marshal(profile)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+// ForgetNetworkProfile drops the stored profile for networkID (e.g. after a
+// connect failure with a previously-fresh profile).
+func ForgetNetworkProfile(configPath, networkID string) {
+	dir := filepath.Dir(configPath)
+	if err := strategy.ForgetNetworkProfile(dir, networkID); err != nil {
+		log.Printf("ForgetNetworkProfile(%s): %v", networkID, err)
+	}
 }
 
 // ResetConnectionOptions resets all connection options to defaults

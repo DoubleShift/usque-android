@@ -81,6 +81,29 @@
             android:gravity="start">
 
             <TextView
+                android:id="@+id/proto_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start"
+                android:text="[Auto] Protocol: —"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="#3d3d3d"
+                android:letterSpacing="0.02" />
+
+            <TextView
+                android:id="@+id/exit_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start"
+                android:text="Exit: —"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif"
+                android:textColor="#5a6b52"
+                android:letterSpacing="0.02"
+                android:layout_marginTop="4dp" />
+
+            <TextView
                 android:id="@+id/ipv4_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

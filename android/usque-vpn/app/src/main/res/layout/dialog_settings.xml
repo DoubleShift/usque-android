@@ -6,6 +6,26 @@
     android:padding="24dp"
     android:background="#f5f3ef">
 
+    <!-- Connection strategy -->
+    <CheckBox
+        android:id="@+id/auto_mode_check"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:checked="true"
+        android:text="Auto: probe and pick the best connection per network"
+        android:textColor="#3d3d3d"
+        android:textSize="13sp"
+        android:layout_marginBottom="2dp" />
+
+    <CheckBox
+        android:id="@+id/speed_first_check"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Speed first (WireGuard outranks MASQUE when faster)"
+        android:textColor="#3d3d3d"
+        android:textSize="13sp"
+        android:layout_marginBottom="12dp" />
+
     <!-- Protocol -->
     <TextView
         android:layout_width="wrap_content"

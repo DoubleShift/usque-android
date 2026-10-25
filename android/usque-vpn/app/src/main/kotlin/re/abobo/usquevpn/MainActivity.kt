@@ -8,6 +8,7 @@ import android.content.SharedPreferences
 import android.net.VpnService
 import android.os.Bundle
 import android.widget.*
+import org.json.JSONObject
 import usqueandroid.Usqueandroid
 
 class MainActivity : Activity() {
@@ -15,8 +16,8 @@ class MainActivity : Activity() {
     companion object {
         private const val VPN_REQUEST_CODE = 1001
         private const val PREFS_NAME = "UsqueVpnPrefs"
-        private const val KEY_SNI = "sni"
-        private const val KEY_ENDPOINT = "endpoint"
+        const val KEY_SNI = "sni"
+        const val KEY_ENDPOINT = "endpoint"
 
         /** Endpoint saved for WireGuard mode (scan results land here). */
         const val KEY_ENDPOINT_WG = "endpoint_wg"
@@ -26,6 +27,12 @@ class MainActivity : Activity() {
         const val PROTO_MASQUE = "masque"
         const val PROTO_WG = "wg"
 
+        /** Connection strategy: auto (probe + fallback ladder) or manual. */
+        const val KEY_AUTO_MODE = "auto_mode"
+
+        /** Speed-first preference: let WireGuard outrank MASQUE when faster. */
+        const val KEY_SPEED_FIRST = "speed_first"
+
         private const val APP_SELECTOR_REQUEST_CODE = 2001
     }
 
@@ -34,6 +41,8 @@ class MainActivity : Activity() {
     private lateinit var ipv4Text: TextView
     private lateinit var ipv6Text: TextView
     private lateinit var endpointText: TextView
+    private lateinit var protoText: TextView
+    private lateinit var exitText: TextView
     private lateinit var settingsButton: Button
     private lateinit var perAppCard: android.view.View
     private lateinit var perAppStatusText: TextView
@@ -55,6 +64,8 @@ class MainActivity : Activity() {
         ipv4Text = findViewById(R.id.ipv4_text)
         ipv6Text = findViewById(R.id.ipv6_text)
         endpointText = findViewById(R.id.endpoint_text)
+        protoText = findViewById(R.id.proto_text)
+        exitText = findViewById(R.id.exit_text)
         settingsButton = findViewById(R.id.settings_button)
         perAppCard = findViewById(R.id.per_app_card)
         perAppStatusText = findViewById(R.id.per_app_status_text)
@@ -98,10 +109,9 @@ class MainActivity : Activity() {
         if (proto == PROTO_WG) KEY_ENDPOINT_WG else KEY_ENDPOINT
 
     private fun loadSavedSettings() {
-        val proto = protocol()
         Usqueandroid.setSNI(prefs.getString(KEY_SNI, "www.visa.cn") ?: "www.visa.cn")
 
-        val savedEndpoint = prefs.getString(endpointKeyFor(proto), "") ?: ""
+        val savedEndpoint = prefs.getString(endpointKeyFor(protocol()), "") ?: ""
         Usqueandroid.setEndpoint(savedEndpoint) // empty resets to the protocol default
     }
 
@@ -111,6 +121,8 @@ class MainActivity : Activity() {
         val protoGroup = dialogView.findViewById<RadioGroup>(R.id.protocol_group)
         val masqueRadio = dialogView.findViewById<RadioButton>(R.id.protocol_masque)
         val wgRadio = dialogView.findViewById<RadioButton>(R.id.protocol_wg)
+        val autoModeCheck = dialogView.findViewById<CheckBox>(R.id.auto_mode_check)
+        val speedFirstCheck = dialogView.findViewById<CheckBox>(R.id.speed_first_check)
         val sniLabel = dialogView.findViewById<TextView>(R.id.sni_label)
         val sniInput = dialogView.findViewById<EditText>(R.id.sni_input)
         val endpointInput = dialogView.findViewById<EditText>(R.id.endpoint_input)
@@ -118,6 +130,8 @@ class MainActivity : Activity() {
 
         val proto = protocol()
         if (proto == PROTO_WG) wgRadio.isChecked = true else masqueRadio.isChecked = true
+        autoModeCheck.isChecked = prefs.getBoolean(KEY_AUTO_MODE, true)
+        speedFirstCheck.isChecked = prefs.getBoolean(KEY_SPEED_FIRST, false)
 
         fun refreshForProtocol(selected: String) {
             val isWg = selected == PROTO_WG
@@ -135,10 +149,18 @@ class MainActivity : Activity() {
                 endpointInput.setText(saved.ifEmpty { Usqueandroid.getDefaultEndpoint(configPath) })
             }
         }
+        // In auto mode the protocol/endpoint section is what the engine
+        // overrides; keep it visible but labeled as manual fallback.
         refreshForProtocol(proto)
         protoGroup.setOnCheckedChangeListener { _, _ ->
             refreshForProtocol(if (wgRadio.isChecked) PROTO_WG else PROTO_MASQUE)
         }
+        autoModeCheck.setOnCheckedChangeListener { _, checked ->
+            speedFirstCheck.isEnabled = checked
+            protoGroup.alpha = if (checked) 0.5f else 1.0f
+        }
+        speedFirstCheck.isEnabled = autoModeCheck.isChecked
+        if (autoModeCheck.isChecked) protoGroup.alpha = 0.5f
 
         sniInput.setText(prefs.getString(KEY_SNI, Usqueandroid.getSNI()))
 
@@ -152,6 +174,8 @@ class MainActivity : Activity() {
 
                 prefs.edit()
                     .putString(KEY_PROTOCOL, selected)
+                    .putBoolean(KEY_AUTO_MODE, autoModeCheck.isChecked)
+                    .putBoolean(KEY_SPEED_FIRST, speedFirstCheck.isChecked)
                     .putString(KEY_SNI, sni)
                     .putString(endpointKeyFor(selected), endpoint)
                     .apply()
@@ -161,7 +185,11 @@ class MainActivity : Activity() {
 
                 Toast.makeText(
                     this,
-                    if (selected == PROTO_WG) "Protocol: WireGuard" else "Protocol: MASQUE",
+                    when {
+                        autoModeCheck.isChecked -> "Mode: Auto (best connection per network)"
+                        selected == PROTO_WG -> "Mode: Manual · WireGuard"
+                        else -> "Mode: Manual · MASQUE"
+                    },
                     Toast.LENGTH_SHORT
                 ).show()
                 updateUI()
@@ -170,6 +198,8 @@ class MainActivity : Activity() {
             .setNeutralButton("Reset") { _, _ ->
                 prefs.edit()
                     .putString(KEY_PROTOCOL, PROTO_MASQUE)
+                    .putBoolean(KEY_AUTO_MODE, true)
+                    .putBoolean(KEY_SPEED_FIRST, false)
                     .putString(KEY_SNI, "www.visa.cn")
                     .putString(KEY_ENDPOINT, "")
                     .putString(KEY_ENDPOINT_WG, "")
@@ -226,6 +256,7 @@ class MainActivity : Activity() {
 
     private fun updateUI() {
         val proto = protocol()
+        val autoMode = prefs.getBoolean(KEY_AUTO_MODE, true)
 
         // Get the REAL tunnel status from Go (not the fake "isRunning" flag).
         // Format: "status|lastError"
@@ -244,7 +275,7 @@ class MainActivity : Activity() {
                 connectButton.setBackgroundResource(R.drawable.button_connected_background)
             }
             "connecting" -> {
-                connectButton.text = "Connecting…"
+                connectButton.text = if (autoMode && !UsqueVpnService.isRunning) "Connect" else "Connecting…"
                 connectButton.setBackgroundResource(R.drawable.button_background)
             }
             "error" -> {
@@ -274,6 +305,43 @@ class MainActivity : Activity() {
             ipv6Text.text = "IPv6: Not registered"
         }
 
+        // Strategy dashboard: what the engine last decided for this network
+        val decisionStr = prefs.getString(UsqueVpnService.KEY_LAST_DECISION, "") ?: ""
+        var dashboardProto = ""
+        var dashboardExit = ""
+        if (decisionStr.isNotEmpty()) {
+            try {
+                val obj = JSONObject(decisionStr)
+                val chosen = obj.optJSONObject("chosen")
+                if (chosen != null) {
+                    val p = chosen.optString("proto", PROTO_MASQUE)
+                    dashboardProto = if (p == PROTO_WG) "WireGuard" else "MASQUE"
+                    val place = listOf(
+                        chosen.optString("colo").ifEmpty { null },
+                        chosen.optString("city").ifEmpty { null }
+                    ).joinToString(" ")
+                    val rtt = chosen.optDouble("rtt_ms", 0.0)
+                    dashboardExit = buildString {
+                        if (place.isNotEmpty()) append(place)
+                        if (rtt > 0) append(if (isEmpty()) "" else " · ").append("${rtt.toInt()} ms")
+                    }
+                }
+            } catch (e: Exception) {
+                // ignore malformed dashboard data
+            }
+        }
+        val modeLabel = if (autoMode) "Auto" else "Manual"
+        protoText.text = when {
+            dashboardProto.isNotEmpty() -> "[$modeLabel] Protocol: $dashboardProto"
+            autoMode -> "[$modeLabel] Connect to auto-probe this network"
+            else -> "[$modeLabel] Protocol: ${if (proto == PROTO_WG) "WireGuard" else "MASQUE"}"
+        }
+        exitText.text = when {
+            dashboardExit.isNotEmpty() -> "Exit: $dashboardExit"
+            autoMode -> "Exit: decided per network"
+            else -> "Exit: anycast (network-routed)"
+        }
+
         // Show current endpoint (per protocol)
         val currentEndpoint = prefs.getString(endpointKeyFor(proto), "") ?: ""
         val displayEndpoint = when {
@@ -286,22 +354,22 @@ class MainActivity : Activity() {
         // When VPN is running, show the tunnel status/error instead of endpoint
         if (UsqueVpnService.isRunning) {
             endpointText.text = when (status) {
-                "connecting" -> "[$protoLabel] Connecting to $displayEndpoint…"
-                "connected" -> "[$protoLabel] Tunnel connected"
-                "error" -> "[$protoLabel] Error: $lastError"
-                "disconnected" -> "[$protoLabel] Reconnecting ($lastError)"
-                else -> "[$protoLabel] Status: $status"
+                "connecting" -> "[$modeLabel] Connecting to $displayEndpoint…"
+                "connected" -> "[$modeLabel] Tunnel connected"
+                "error" -> "[$modeLabel] Error: $lastError"
+                "disconnected" -> "[$modeLabel] Reconnecting ($lastError)"
+                else -> "[$modeLabel] Status: $status"
             }
         } else {
             val wgNote = if (proto == PROTO_WG && !Usqueandroid.hasWgDevice(configPath)) {
                 "  (registers WireGuard device on first connect)"
             } else ""
-            endpointText.text = "[$protoLabel] Endpoint: $displayEndpoint$wgNote"
+            endpointText.text = "[$modeLabel] Endpoint: $displayEndpoint$wgNote"
         }
 
         // Scan card status
         scanStatusText.text = if (Usqueandroid.hasWgDevice(configPath)) {
-            "Scan for working endpoints & exit nodes"
+            "Probe / scan endpoints, test SNI, pick exits"
         } else {
             "Scan — will register a WireGuard device first"
         }
