@@ -48,6 +48,7 @@ class MainActivity : Activity() {
     private lateinit var perAppStatusText: TextView
     private lateinit var scanCard: android.view.View
     private lateinit var scanStatusText: TextView
+    private lateinit var accountCard: android.view.View
 
     private val configPath by lazy { "${filesDir.absolutePath}/config.json" }
 
@@ -71,6 +72,7 @@ class MainActivity : Activity() {
         perAppStatusText = findViewById(R.id.per_app_status_text)
         scanCard = findViewById(R.id.scan_card)
         scanStatusText = findViewById(R.id.scan_status_text)
+        accountCard = findViewById(R.id.account_card)
 
         // Load saved settings into Go library
         loadSavedSettings()
@@ -89,6 +91,10 @@ class MainActivity : Activity() {
 
         scanCard.setOnClickListener {
             startActivity(Intent(this, ScanActivity::class.java))
+        }
+
+        accountCard.setOnClickListener {
+            startActivity(Intent(this, AccountActivity::class.java))
         }
 
         perAppCard.setOnClickListener {

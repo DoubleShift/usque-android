@@ -100,3 +100,18 @@ type Policy struct {
 	TunnelProtocol string `json:"tunnel_protocol"`
 	// TODO: add ZeroTier fields
 }
+
+// Devices is the list of devices bound to the same WARP license key.
+// Returned by GET /reg/{id}/account/devices.
+type Devices []Device
+
+type Device struct {
+	ID        string `json:"id"`
+	Type      string `json:"type"`
+	Model     string `json:"model"`
+	Name      string `json:"name,omitempty"`
+	Created   string `json:"created"`
+	Activated string `json:"activated"`
+	Active    bool   `json:"active"`
+	Role      string `json:"role"`
+}

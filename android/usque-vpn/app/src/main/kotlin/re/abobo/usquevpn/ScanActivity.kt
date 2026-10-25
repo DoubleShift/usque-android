@@ -41,6 +41,7 @@ class ScanActivity : Activity() {
     private lateinit var fullCheckbox: CheckBox
     private lateinit var quickRadio: RadioButton
     private lateinit var deepRadio: RadioButton
+    private lateinit var sniRadio: RadioButton
     private lateinit var resultsList: ListView
 
     private val configPath by lazy { "${filesDir.absolutePath}/config.json" }
@@ -55,6 +56,10 @@ class ScanActivity : Activity() {
 
     @Volatile
     private var running = false
+
+    /** Active tool: "quick" | "deep" | "sni". */
+    @Volatile
+    private var mode: String = "quick"
 
     /** Throttled list refresh while results stream in. */
     private val refreshRunnable = object : Runnable {
@@ -79,6 +84,7 @@ class ScanActivity : Activity() {
         fullCheckbox = findViewById(R.id.scan_full_checkbox)
         quickRadio = findViewById(R.id.mode_quick)
         deepRadio = findViewById(R.id.mode_deep)
+        sniRadio = findViewById(R.id.mode_sni)
         resultsList = findViewById(R.id.scan_results_list)
 
         adapter = ScanRowAdapter()
@@ -148,22 +154,34 @@ class ScanActivity : Activity() {
         adapter.notifyDataSetChanged()
         progressBar.progress = 0
         running = true
+        mode = if (quickRadio.isChecked) "quick" else if (sniRadio.isChecked) "sni" else "deep"
         startButton.isEnabled = false
         stopButton.isEnabled = true
         fullCheckbox.isEnabled = false
         quickRadio.isEnabled = false
         deepRadio.isEnabled = false
+        sniRadio.isEnabled = false
         setStatus("Scanning…")
         mainHandler.postDelayed(refreshRunnable, 800)
 
-        val quick = quickRadio.isChecked
         Thread {
-            if (quick) {
-                runQuickProbe()
-            } else {
-                runDeepScan()
+            when (mode) {
+                "quick" -> runQuickProbe()
+                "sni" -> runSniTest()
+                else -> runDeepScan()
             }
         }.start()
+    }
+
+    private fun runSniTest() {
+        val sni = prefs.getString(MainActivity.KEY_SNI, "www.visa.cn") ?: "www.visa.cn"
+        val err = Usqueandroid.testSni(configPath, sni, strategyCallback)
+        runOnUiThread {
+            finishRun()
+            if (err.isNotEmpty()) {
+                statusText.text = "SNI test error: $err"
+            }
+        }
     }
 
     private fun runQuickProbe() {
@@ -197,6 +215,7 @@ class ScanActivity : Activity() {
         fullCheckbox.isEnabled = true
         quickRadio.isEnabled = true
         deepRadio.isEnabled = true
+        sniRadio.isEnabled = true
         mainHandler.removeCallbacks(refreshRunnable)
         adapter.notifyDataSetChanged()
     }
@@ -246,6 +265,28 @@ class ScanActivity : Activity() {
                 finishRun()
                 try {
                     val obj = JSONObject(decisionJSON ?: "{}")
+
+                    // SNI test mode: summary is {"port":..,"working":N,"total":M,
+                    // "best":"sni","rtt_ms":..}. Apply the winning SNI.
+                    if (mode == "sni") {
+                        val working = obj.optInt("working", 0)
+                        val total = obj.optInt("total", 0)
+                        val bestSni = obj.optString("best", "")
+                        if (working == 0 || bestSni.isEmpty()) {
+                            statusText.text = "No SNI passed ($total tested). This network likely blocks MASQUE entirely."
+                            return@runOnUiThread
+                        }
+                        bestEndpoint = "sni:$bestSni"
+                        val rtt = obj.optDouble("rtt_ms", 0.0)
+                        prefs.edit().putString(MainActivity.KEY_SNI, bestSni).apply()
+                        Usqueandroid.setSNI(bestSni)
+                        statusText.text = "Best SNI: $bestSni" +
+                                (if (rtt > 0) " ${rtt.toInt()} ms" else "") +
+                                " — $working/$total passed. Applied to settings."
+                        adapter.notifyDataSetChanged()
+                        return@runOnUiThread
+                    }
+
                     val chosen = obj.optJSONObject("chosen")
                     if (chosen == null) {
                         statusText.text = "No working connection found on this network."

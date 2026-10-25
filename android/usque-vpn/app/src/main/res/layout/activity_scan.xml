@@ -80,7 +80,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checked="true"
-                android:text="Quick probe (auto-connect)"
+                android:text="Quick"
                 android:textColor="@color/text_primary"
                 android:textSize="13sp" />
 
@@ -88,8 +88,17 @@
                 android:id="@+id/mode_deep"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="20dp"
-                android:text="Deep scan"
+                android:layout_marginStart="14dp"
+                android:text="Deep"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp" />
+
+            <RadioButton
+                android:id="@+id/mode_sni"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:text="SNI test"
                 android:textColor="@color/text_primary"
                 android:textSize="13sp" />
 

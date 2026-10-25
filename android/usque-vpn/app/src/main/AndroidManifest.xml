@@ -49,6 +49,12 @@
             android:exported="false"
             android:label="Endpoint Scanner" />
 
+        <!-- Account and device management -->
+        <activity
+            android:name=".AccountActivity"
+            android:exported="false"
+            android:label="Account &amp; Devices" />
+
         <!-- VPN Service -->
         <service
             android:name=".UsqueVpnService"

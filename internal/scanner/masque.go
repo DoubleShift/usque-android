@@ -259,6 +259,29 @@ func probeMasqueEndpoint(ctx context.Context, t *masqueProbeTunnel, endpoint str
 	return tr, rtt, loss, torn, true
 }
 
+// ProbeMasqueSni tests a list of SNI candidates against one MASQUE endpoint
+// and reports every SNI that carries data, with its exit colo. Each SNI runs
+// in its own tunnel (the TLS config embeds the SNI); sequential to keep the
+// memory profile flat.
+func ProbeMasqueSni(ctx context.Context, snis []string, endpointV4 string, port int, timeout time.Duration, pings int, report func(done, total int, sni string, ok bool, rttMs float64, torn bool, colo string)) {
+	total := len(snis)
+	report(0, total, "", false, 0, false, "")
+	for i, sni := range snis {
+		if ctx.Err() != nil {
+			return
+		}
+		t, err := newMasqueProbeTunnel(sni)
+		if err != nil {
+			report(i+1, total, sni, false, 0, false, "")
+			continue
+		}
+		ep := net.JoinHostPort(endpointV4, strconv.Itoa(port))
+		tr, rtt, _, torn, ok := probeMasqueEndpoint(ctx, t, ep, timeout, pings)
+		t.Close()
+		report(i+1, total, sni, ok, rtt.Seconds()*1000, torn, tr.colo)
+	}
+}
+
 // ProbeMasquePorts sweeps the MASQUE ports for one SNI and reports every
 // working (endpoint, port) with its exit colo. Runs on the caller's
 // goroutine; cancel via ctx. tunnelParallel bounds concurrent dials.

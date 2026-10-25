@@ -851,6 +851,139 @@ func StopProbe() {
 	strategy.StopProbe()
 }
 
+// TestSni probes a curated list of SNI candidates against the MASQUE service
+// (port 443) and reports which ones carry data through the current network.
+// The user's custom SNI (settings) is appended to the list automatically.
+//
+// Requires the MASQUE device. Blocks - call from a background thread.
+// StopProbe cancels. Results arrive via OnCandidate (one JSON per working
+// SNI) and OnDone ({"port":443,"working":N,"total":M,"best":"...","rtt_ms":..}).
+//
+// Returns:
+//   - error string for setup problems, empty string once probing starts.
+func TestSni(configPath, customSNI string, cb StrategyCallback) string {
+	if err := config.LoadConfig(configPath); err != nil {
+		return fmt.Sprintf("Failed to load config: %v", err)
+	}
+	cfg := config.AppConfig
+	if err := strategy.TestSni(&cfg, customSNI, 443, cb); err != nil {
+		log.Printf("SNI test ended: %v", err)
+	}
+	return ""
+}
+
+// ============================================
+// Account and Device Management
+// ============================================
+
+// accountInfoJSON is the bindable shape returned by GetAccountInfo.
+// All fields are strings/numbers so gomobile can marshal the JSON freely.
+type accountInfoJSON struct {
+	Account   string             `json:"account"`
+	Devices   []deviceJSON       `json:"devices"`
+	License   string             `json:"license"`
+	AccountID string             `json:"account_id"`
+	Created   string             `json:"created,omitempty"`
+	Updated   string             `json:"updated,omitempty"`
+	Errors    []string           `json:"errors,omitempty"`
+}
+
+type deviceJSON struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Model   string `json:"model"`
+	Type    string `json:"type"`
+	Active  bool   `json:"active"`
+	Current bool   `json:"current"`
+}
+
+// GetAccountInfo fetches the WARP account details and the list of devices
+// sharing this device's license key. Blocking network call - call from a
+// background thread.
+//
+// Returns JSON on success ({"account":..,"devices":[..],"license":..}),
+// or an error string prefixed with "ERROR:".
+func GetAccountInfo(configPath string) string {
+	if err := config.LoadConfig(configPath); err != nil {
+		return "ERROR: Failed to load config: " + err.Error()
+	}
+
+	cfg := config.AppConfig
+	var errs []string
+
+	account, err := api.GetAccount(cfg.ID, cfg.AccessToken)
+	if err != nil {
+		errs = append(errs, "account: "+err.Error())
+	}
+	devices, devErr := api.GetDevices(cfg.ID, cfg.AccessToken)
+	if devErr != nil {
+		errs = append(errs, "devices: "+devErr.Error())
+	}
+
+	info := accountInfoJSON{
+		License: cfg.License,
+		Errors:  errs,
+	}
+	if account != nil {
+		info.AccountID = account.ID
+		info.Created = account.Created
+		info.Updated = account.Updated
+	}
+	for _, d := range *devices {
+		info.Devices = append(info.Devices, deviceJSON{
+			ID:      d.ID,
+			Name:    d.Name,
+			Model:   d.Model,
+			Type:    d.Type,
+			Active:  d.Active,
+			Current: d.ID == cfg.ID,
+		})
+	}
+
+	b, err := json.Marshal(info)
+	if err != nil {
+		return "ERROR: " + err.Error()
+	}
+	return string(b)
+}
+
+// UpdateLicense binds a new WARP license key (WARP+ key) to the current
+// device. Blocking network call.
+//
+// Returns empty string on success, error string on failure.
+func UpdateLicense(configPath, licenseKey string) string {
+	if err := config.LoadConfig(configPath); err != nil {
+		return "ERROR: Failed to load config: " + err.Error()
+	}
+	if err := api.UpdateLicenceKey(config.AppConfig.ID, config.AppConfig.AccessToken, licenseKey); err != nil {
+		return err.Error()
+	}
+	// Keep the stored license in sync and refresh the account view data.
+	config.AppConfig.License = licenseKey
+	if err := config.AppConfig.SaveConfig(configPath); err != nil {
+		return "License applied but failed to save config: " + err.Error()
+	}
+	return ""
+}
+
+// RemoveLicense unbinds the license key from the current device, returning
+// it to the free tier. Blocking network call.
+//
+// Returns empty string on success, error string on failure.
+func RemoveLicense(configPath string) string {
+	if err := config.LoadConfig(configPath); err != nil {
+		return "ERROR: Failed to load config: " + err.Error()
+	}
+	if err := api.DeleteLicenceKey(config.AppConfig.ID, config.AppConfig.AccessToken); err != nil {
+		return err.Error()
+	}
+	config.AppConfig.License = ""
+	if err := config.AppConfig.SaveConfig(configPath); err != nil {
+		return "License removed but failed to save config: " + err.Error()
+	}
+	return ""
+}
+
 // LoadNetworkProfile returns the stored profile JSON for networkID, or an
 // empty string when none exists. Shape:
 // {"network_id":..,"chosen":{...},"candidates":[...],"verified_at":unix}
