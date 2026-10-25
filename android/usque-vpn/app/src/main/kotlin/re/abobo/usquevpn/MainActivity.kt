@@ -273,22 +273,27 @@ class MainActivity : Activity() {
             "connected" -> {
                 connectButton.text = "Connected"
                 connectButton.setBackgroundResource(R.drawable.button_connected_background)
+                connectButton.setTextColor(getColor(R.color.text_primary))
             }
             "connecting" -> {
                 connectButton.text = if (autoMode && !UsqueVpnService.isRunning) "Connect" else "Connecting…"
                 connectButton.setBackgroundResource(R.drawable.button_background)
+                connectButton.setTextColor(getColor(R.color.on_accent))
             }
             "error" -> {
                 connectButton.text = "Retry…"
                 connectButton.setBackgroundResource(R.drawable.button_background)
+                connectButton.setTextColor(getColor(R.color.on_accent))
             }
             "disconnected" -> {
                 connectButton.text = "Reconnecting…"
                 connectButton.setBackgroundResource(R.drawable.button_background)
+                connectButton.setTextColor(getColor(R.color.on_accent))
             }
             else -> {
                 connectButton.text = "Connect"
                 connectButton.setBackgroundResource(R.drawable.button_background)
+                connectButton.setTextColor(getColor(R.color.on_accent))
             }
         }
 

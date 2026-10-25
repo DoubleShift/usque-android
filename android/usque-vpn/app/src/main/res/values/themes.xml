@@ -1,29 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      Switched from Theme.MaterialComponents.DayNight.NoActionBar to a plain
-      platform theme. MaterialComponents pulls in:
-        - MaterialComponentsViewInflater (auto-inflates Material widgets)
-        - MaterialColors, MaterialShapeUtils, MaterialAttributes
-        - Hundreds of Material-specific drawables and styles
-      None of which this app actually uses (MainActivity extends Activity,
-      not AppCompatActivity; no Material widgets in any layout; AlertDialog
-      is the platform android.app.AlertDialog, not Material).
-      Dropping Material saves ~2 MB of code memory and reduces inflation
-      overhead at Activity start.
-
-      The dark "Shield" palette lives in colors.xml as design tokens; the
-      platform dark theme gives dark dialogs and properly tinted controls
-      without any Material dependency.
+      Plain platform theme (no Material — see history below for why).
+      Light "Shield" palette from colors.xml; colorControl* tints the
+      platform switches/checkboxes/radios green without Material.
     -->
-    <style name="Theme.UsqueVpn" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+    <style name="Theme.UsqueVpn" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
         <item name="android:statusBarColor">@color/bg</item>
         <item name="android:navigationBarColor">@color/bg</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowBackground">@color/bg</item>
-        <item name="android:colorAccent">@color/accent</item>
-        <item name="android:colorControlActivated">@color/accent</item>
-        <item name="android:colorControlNormal">@color/text_secondary</item>
+        <item name="android:colorAccent">@color/status_connected</item>
+        <item name="android:colorControlActivated">@color/status_connected</item>
+        <item name="android:colorControlNormal">@color/text_hint</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
     </style>

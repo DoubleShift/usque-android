@@ -1,59 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/bg">
+    android:background="@color/bg"
+    android:scrollbars="none"
+    android:fillViewport="true">
 
-    <!-- Top bar: title + settings button -->
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="20dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:layout_alignParentStart="true"
-            android:text="RE.usque"
-            android:textSize="22sp"
-            android:fontFamily="sans-serif-light"
-            android:textColor="@color/text_primary"
-            android:letterSpacing="0.08" />
-
-        <Button
-            android:id="@+id/settings_button"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:text="Settings"
-            android:textColor="@color/text_primary"
-            android:textSize="12sp"
-            android:fontFamily="sans-serif-medium"
-            android:background="@drawable/button_circle_background"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp" />
-
-    </RelativeLayout>
-
-    <!-- Center content -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:paddingStart="32dp"
-        android:paddingEnd="32dp"
-        android:paddingTop="40dp">
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="24dp">
+
+        <!-- Top bar: title + settings button -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="16dp"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_alignParentStart="true"
+                android:text="RE.usque"
+                android:textSize="22sp"
+                android:fontFamily="sans-serif-light"
+                android:textColor="@color/text_primary"
+                android:letterSpacing="0.08" />
+
+            <Button
+                android:id="@+id/settings_button"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:text="Settings"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif-medium"
+                android:background="@drawable/button_circle_background"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp" />
+
+        </RelativeLayout>
 
         <!-- Circular connect button with outer ring -->
         <FrameLayout
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            android:layout_marginBottom="40dp">
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="20dp">
 
             <View
                 android:layout_width="match_parent"
@@ -62,193 +63,180 @@
 
             <Button
                 android:id="@+id/connect_button"
-                android:layout_width="184dp"
-                android:layout_height="184dp"
+                android:layout_width="146dp"
+                android:layout_height="146dp"
                 android:layout_gravity="center"
                 android:text="Connect"
-                android:textSize="20sp"
+                android:textSize="18sp"
                 android:fontFamily="sans-serif-medium"
                 android:textColor="@color/on_accent"
                 android:background="@drawable/button_background" />
 
         </FrameLayout>
 
-        <!-- Connection info (left aligned) -->
+        <!-- Connection status card -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="start">
+            android:background="@drawable/card_background"
+            android:padding="16dp">
 
             <TextView
                 android:id="@+id/proto_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="start"
                 android:text="[Auto] Protocol: —"
-                android:textSize="14sp"
+                android:textSize="15sp"
                 android:fontFamily="sans-serif-medium"
-                android:textColor="@color/text_primary"
-                android:letterSpacing="0.02" />
+                android:textColor="@color/text_primary" />
 
             <TextView
                 android:id="@+id/exit_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="start"
                 android:text="Exit: —"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:fontFamily="sans-serif"
                 android:textColor="@color/text_secondary"
-                android:letterSpacing="0.02"
-                android:layout_marginTop="4dp" />
-
-            <TextView
-                android:id="@+id/ipv4_text"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="start"
-                android:text="IPv4: Not registered"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif"
-                android:textColor="@color/text_secondary"
-                android:letterSpacing="0.02"
-                android:layout_marginTop="4dp" />
-
-            <TextView
-                android:id="@+id/ipv6_text"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="start"
-                android:text="IPv6: Not registered"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif"
-                android:textColor="@color/text_secondary"
-                android:letterSpacing="0.02"
-                android:layout_marginTop="4dp" />
+                android:layout_marginTop="6dp" />
 
             <TextView
                 android:id="@+id/endpoint_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="start"
                 android:text="Endpoint: —"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:fontFamily="sans-serif"
                 android:textColor="@color/text_secondary"
-                android:letterSpacing="0.02"
-                android:layout_marginTop="4dp" />
+                android:layout_marginTop="6dp" />
+
+            <TextView
+                android:id="@+id/ipv4_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="IPv4: Not registered"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="6dp" />
+
+            <TextView
+                android:id="@+id/ipv6_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="IPv6: Not registered"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="2dp" />
 
         </LinearLayout>
 
-    </LinearLayout>
-
-    <!-- Endpoint Scanner Card -->
-    <LinearLayout
-        android:id="@+id/scan_card"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/card_background"
-        android:padding="18dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginEnd="24dp"
-        android:layout_marginBottom="16dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:foreground="?android:attr/selectableItemBackground">
-
+        <!-- Endpoint Scanner Card -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:id="@+id/scan_card"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/card_background"
+            android:padding="16dp"
+            android:layout_marginTop="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?android:attr/selectableItemBackground">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Endpoint Scanner"
+                    android:textSize="11sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="@color/text_secondary"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.12" />
+
+                <TextView
+                    android:id="@+id/scan_status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Probe / scan endpoints, test SNI, pick exits"
+                    android:textSize="15sp"
+                    android:fontFamily="sans-serif"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="3dp" />
+
+            </LinearLayout>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Endpoint Scanner"
-                android:textSize="11sp"
-                android:fontFamily="sans-serif-medium"
-                android:textColor="@color/text_secondary"
-                android:textAllCaps="true"
-                android:letterSpacing="0.12" />
-
-            <TextView
-                android:id="@+id/scan_status_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Scan for working endpoints &amp; exit nodes"
-                android:textSize="15sp"
-                android:fontFamily="sans-serif"
-                android:textColor="@color/text_primary"
-                android:layout_marginTop="3dp" />
+                android:text="›"
+                android:textSize="26sp"
+                android:fontFamily="sans-serif-light"
+                android:textColor="@color/text_hint" />
 
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="›"
-            android:textSize="28sp"
-            android:fontFamily="sans-serif-light"
-            android:textColor="@color/text_secondary" />
-
-    </LinearLayout>
-
-    <!-- Per-App Proxy Card (pinned to bottom) -->
-    <LinearLayout
-        android:id="@+id/per_app_card"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/card_background"
-        android:padding="18dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginEnd="24dp"
-        android:layout_marginBottom="32dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:foreground="?android:attr/selectableItemBackground">
-
+        <!-- Per-App Proxy Card -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:id="@+id/per_app_card"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/card_background"
+            android:padding="16dp"
+            android:layout_marginTop="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?android:attr/selectableItemBackground">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Per-App Proxy"
+                    android:textSize="11sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="@color/text_secondary"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.12" />
+
+                <TextView
+                    android:id="@+id/per_app_status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Off — all apps use VPN"
+                    android:textSize="15sp"
+                    android:fontFamily="sans-serif"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="3dp" />
+
+            </LinearLayout>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Per-App Proxy"
-                android:textSize="11sp"
-                android:fontFamily="sans-serif-medium"
-                android:textColor="@color/text_secondary"
-                android:textAllCaps="true"
-                android:letterSpacing="0.12" />
-
-            <TextView
-                android:id="@+id/per_app_status_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Off — all apps use VPN"
-                android:textSize="15sp"
-                android:fontFamily="sans-serif"
-                android:textColor="@color/text_primary"
-                android:layout_marginTop="3dp" />
+                android:text="›"
+                android:textSize="26sp"
+                android:fontFamily="sans-serif-light"
+                android:textColor="@color/text_hint" />
 
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="›"
-            android:textSize="28sp"
-            android:fontFamily="sans-serif-light"
-            android:textColor="@color/text_secondary" />
-
     </LinearLayout>
 
-</LinearLayout>
+</ScrollView>

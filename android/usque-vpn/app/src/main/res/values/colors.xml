@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      Design tokens — "Shield dark + connected green"
-      Derived with the ui-ux-pro-max design system (Minimalism & Swiss Style,
-      dark mode, security/privacy product profile). Single source of truth
-      for every UI color; no hardcoded hex in layouts.
+      Design tokens — "Shield light": Swiss minimalism, light surfaces,
+      navy authority + connected green. Derived with the ui-ux-pro-max
+      design system; contrast pairs verified ≥ 4.5:1 for body text.
+      Single source of truth for every UI color; no hardcoded hex in layouts.
     -->
     <!-- Surfaces -->
-    <color name="bg">#0F172A</color>
-    <color name="surface">#192134</color>
-    <color name="surface_muted">#10192E</color>
-    <color name="surface_disabled">#1E293B</color>
+    <color name="bg">#F8FAFC</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_muted">#F1F5F9</color>
+    <color name="surface_disabled">#E2E8F0</color>
 
     <!-- Content -->
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#94A3B8</color>
-    <color name="text_hint">#64748B</color>
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#475569</color>
+    <color name="text_hint">#94A3B8</color>
 
     <!-- Brand / actions -->
     <color name="accent">#22C55E</color>
@@ -24,12 +24,12 @@
     <color name="primary_deep">#1E3A5F</color>
 
     <!-- Status -->
-    <color name="status_connected">#22C55E</color>
-    <color name="status_connecting">#EAB308</color>
+    <color name="status_connected">#16A34A</color>
+    <color name="status_connecting">#CA8A04</color>
     <color name="status_error">#DC2626</color>
 
     <!-- Semantic -->
-    <color name="border">#14FFFFFF</color>
+    <color name="border">#E2E8F0</color>
     <color name="destructive">#DC2626</color>
     <color name="destructive_pressed">#B91C1C</color>
     <color name="on_destructive">#FFFFFF</color>
